@@ -1,7 +1,2 @@
 # Default ignored files
 /workspace.xml#
-
-# =========================== #
-# Training and Evaluating Data #
-# =========================== #
-*.png

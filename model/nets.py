@@ -1,5 +1,7 @@
 ## -*- coding: utf-8 -*-
 import tensorflow as tf
+# NEW
+import tensorflow.compat.v1 as tf
 
 from utils import BatchNorm, Conv3D
 

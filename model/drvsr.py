@@ -3,7 +3,8 @@ import time
 import glob
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
+#import tensorflow.contrib.slim as slim
+import tf_slim as slim
 from tensorflow.python.ops import control_flow_ops
 import random
 from datetime import datetime
@@ -17,6 +18,9 @@ from modules.SSIM_Index import *
 from utils import get_num_params,cv2_imsave,cv2_imread
 from tqdm import tqdm,trange
 from model.base_model import VSR
+# NEW
+import tensorflow.compat.v1 as tf
+
 
 '''This work tries to rebuild DRVSR (Detail-revealing Deep Video Super-resolution).
 This code is based on the original code of DRVSR https://github.com/jiangsutx/SPMC_VideoSR.
@@ -347,7 +351,7 @@ class DRVSR(VSR):
         print('params num of sr:',get_num_params(vars_sr))
         print('params num of all:',get_num_params(vars_all))
 
-        config = tf.ConfigProto() 
+        config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         #sess=tf.Session()
@@ -364,7 +368,7 @@ class DRVSR(VSR):
 
         # summary_op = tf.summary.merge_all()
         # summary_writer = tf.summary.FileWriter(self.train_dir, sess.graph, flush_secs=30)
-        
+
 
         cost_time=0
         start_time=time.time()
@@ -419,7 +423,7 @@ class DRVSR(VSR):
         else:
             print(" [*] Reading checkpoints... ERROR")
             return False
-                
+
     def testvideo(self, dataPath=None, savename='result', reuse=False, scale_factor=4, num_frames=3):
         inList = sorted(glob.glob(os.path.join(dataPath, 'blur{}/*.png').format(scale_factor)))
         inp = [cv2_imread(i).astype(np.float32) / 255.0 for i in inList]
@@ -472,7 +476,7 @@ class DRVSR(VSR):
                 output_rgb = output_rgb[:, :, :out_h, :out_w, :]
 
             if reuse == False:
-                config = tf.ConfigProto() 
+                config = tf.ConfigProto()
                 config.gpu_options.allow_growth = True
                 sess = tf.Session(config=config)
                 #sess=tf.Session()

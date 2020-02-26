@@ -3,7 +3,10 @@ import time
 import glob
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
+# OLD
+# import tensorflow.contrib.slim as slim
+# NEW
+import tf_slim as slim
 from tensorflow.python.ops import control_flow_ops
 import random
 import subprocess
@@ -23,6 +26,8 @@ from tensorflow.python.layers.convolutional import Conv2D,conv2d
 from utils import cv2_imsave,cv2_imread,automkdir,get_num_params
 from tqdm import tqdm,trange
 from model.base_model import VSR
+# NEW
+import tensorflow.compat.v1 as tf
 
 '''This work tries to rebuild RVSR-LTD (Robust Video Super-Resolution with Learned Temporal Dynamics).
 The code is mainly based on https://github.com/psychopa4/MMCNN and https://github.com/jiangsutx/SPMC_VideoSR.
@@ -277,9 +282,9 @@ class LTDVSR(VSR):
         print('params num of sr:',get_num_params(vars_sr))
         print('params num of all:',get_num_params(vars_all))
 
-        config = tf.ConfigProto() 
+        config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
-        sess = tf.Session(config=config) 
+        sess = tf.Session(config=config)
         #sess=tf.Session()
         self.sess=sess
         sess.run(tf.global_variables_initializer())
@@ -393,9 +398,9 @@ class LTDVSR(VSR):
                 output_rgb = output_rgb[:, :, :out_h, :out_w, :]
 
             if reuse == False:
-                config = tf.ConfigProto() 
+                config = tf.ConfigProto()
                 config.gpu_options.allow_growth = True
-                sess = tf.Session(config=config) 
+                sess = tf.Session(config=config)
                 #sess=tf.Session()
                 self.sess=sess
                 self.saver = tf.train.Saver(max_to_keep=50, keep_checkpoint_every_n_hours=1)

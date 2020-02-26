@@ -1,7 +1,9 @@
 from math import ceil
 import tensorflow as tf
-
-slim = tf.contrib.slim
+# NEW
+import tf_slim as slim
+# OLD
+# slim = tf.contrib.slim
 
 from modules.videosr_ops import *
 from modules.utils import *

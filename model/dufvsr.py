@@ -11,11 +11,13 @@ from utils import Huber,LoadImage, DownSample, DownSample_4D, BLUR, AVG_PSNR, de
 from model.nets import FR_16L, FR_28L, FR_52L
 from model.base_model import VSR
 from tqdm import trange,tqdm
-        
+# NEW
+import tensorflow.compat.v1 as tf
+
 '''This work tries to rebuild DUFVSR (Deep Video Super-Resolution Network Using Dynamic Upsampling Filters Without Explicit Motion Compensation).
 The code is mainly based on https://github.com/psychopa4/MMCNN, https://github.com/jiangsutx/SPMC_VideoSR and https://github.com/yhjo09/VSR-DUF.
 '''
-        
+
 class DUFVSR(VSR):
     def __init__(self):
         self.num_frames=7
@@ -34,15 +36,15 @@ class DUFVSR(VSR):
         self.eval_dir='./data/filelist_val.txt'
         self.save_dir='./checkpoint/duf_52'
         self.log_dir='./duf_52.txt'
-            
-    def forward(self, x, is_train):  
+
+    def forward(self, x, is_train):
         # shape of x: [B,T_in,H,W,C]
 
         # Generate filters and residual
         # Fx: [B,1,H,W,1*5*5,R*R]
         # Rx: [B,1,H,W,3*R*R]
         with tf.variable_scope('G',reuse=tf.AUTO_REUSE) as scope:
-            Fx, Rx = FR_52L(x, is_train) 
+            Fx, Rx = FR_52L(x, is_train)
 
             x_c = []
             for c in range(3):
@@ -54,9 +56,9 @@ class DUFVSR(VSR):
 
             Rx = depth_to_space_3D(Rx, self.scale)   # [B,1,H*R,W*R,3]
             x += Rx
-            
+
             return x
-                    
+
     def build(self):
         H = tf.placeholder(tf.float32, shape=[None, 1, None, None, 3], name='H_truth')
         L = tf.placeholder(tf.float32, shape=[None, self.num_frames, None, None, 3], name='L_input')
@@ -66,7 +68,7 @@ class DUFVSR(VSR):
         eval_mse=tf.reduce_mean((SR-H) ** 2, axis=[2,3,4])#[:,self.num_frames//2:self.num_frames//2+1]
         self.loss, self.eval_mse= loss, eval_mse
         self.L, self.H, self.SR, self.is_train =  L, H, SR, is_train
-        
+
     def eval(self):
         print('Evaluating ...')
         if not hasattr(self, 'sess'):
@@ -77,17 +79,17 @@ class DUFVSR(VSR):
             self.load(sess, self.save_dir)
         else:
             sess = self.sess
-            
+
         border=8
         in_h,in_w=self.eval_in_size
         out_h = in_h*self.scale #512
         out_w = in_w*self.scale #960
         bd=border//self.scale
-        
+
         filenames=open(self.eval_dir, 'rt').read().splitlines()
         hr_list=[sorted(glob.glob(join(f,'truth','*.png'))) for f in filenames]
         lr_list=[sorted(glob.glob(join(f,'blur{}'.format(self.scale),'*.png'))) for f in filenames]
-        
+
         center=15
         batch_hr = []
         batch_lr = []
@@ -104,7 +106,7 @@ class DUFVSR(VSR):
                 gt = [i[border:out_h+border, border:out_w+border, :].astype(np.float32) / 255.0 for i in gt]
                 batch_hr.append(np.stack(gt, axis=0))
                 batch_lr.append(np.stack(inp, axis=0))
-                
+
                 if len(batch_hr) == self.eval_basz:
                     batch_hr = np.stack(batch_hr, 0)
                     batch_lr = np.stack(batch_lr, 0)
@@ -117,7 +119,7 @@ class DUFVSR(VSR):
                     batch_lr=[]
                     print('\tEval batch {} - {} ...'.format(batch_cnt, batch_cnt + self.eval_basz))
                     batch_cnt+=self.eval_basz
-                    
+
         psnr_acc = 10 * np.log10(1.0 / mse_acc)
         mse_avg = np.mean(mse_acc, axis=0)
         psnr_avg = np.mean(psnr_acc, axis=0)
@@ -129,26 +131,26 @@ class DUFVSR(VSR):
             mse_avg=(mse_avg*1e6).astype(np.int64)/(1e6)
             psnr_avg=(psnr_avg*1e6).astype(np.int64)/(1e6)
             f.write('{'+'"Iter": {} , "PSNR": {}, "MSE": {}'.format(sess.run(self.global_step), psnr_avg.tolist(), mse_avg.tolist())+'}\n')
-    
+
     def train(self):
         LR, HR= self.double_input_producer()
         global_step=tf.Variable(initial_value=0, trainable=False)
         self.global_step=global_step
         self.build()
         lr= tf.train.polynomial_decay(self.learning_rate, global_step, self.decay_step, end_learning_rate=self.end_lr, power=1.)
-        
+
         vars_all=tf.trainable_variables()
         print('Params num of all:',get_num_params(vars_all))
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
-        
-        
-        config = tf.ConfigProto() 
+
+
+        config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
-        sess = tf.Session(config=config) 
+        sess = tf.Session(config=config)
         #sess=tf.Session()
         self.sess=sess
         sess.run(tf.global_variables_initializer())
-        
+
         self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
         if self.reload:
             self.load(sess, self.save_dir)
@@ -162,7 +164,7 @@ class DUFVSR(VSR):
         for step in range(sess.run(global_step), self.max_step):
             if step>gs and step%20==0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v))
-                
+
             if step % 500 == 0:
                 if step>gs:
                     self.save(sess, self.save_dir, step)
@@ -175,22 +177,22 @@ class DUFVSR(VSR):
 
             lr1,hr=sess.run([LR,HR])
             _,loss_v=sess.run([training_op,self.loss],feed_dict={self.L:lr1, self.H:hr, self.is_train:True})
-            
+
             if step>500 and loss_v>10:
                 print('Model collapsed with loss={}'.format(loss_v))
                 break
-                
-            
+
+
     def test_video_truth(self, path, name='result', reuse=False, part=8):
         save_path=join(path,name)
         automkdir(save_path)
-        
+
         imgs=sorted(glob.glob(join(path,'truth','*.png')))
         imgs=[cv2_imread(i)/255. for i in imgs]
-        
+
         test_gt = tf.placeholder(tf.float32, [None, self.num_frames, None, None, 3])
         test_inp=DownSample(test_gt, BLUR, scale=self.scale)
-        
+
         if not reuse:
             self.build()
             sess=tf.Session()
@@ -198,7 +200,7 @@ class DUFVSR(VSR):
             sess.run(tf.global_variables_initializer())
             self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
             self.load(sess, self.save_dir)
-        
+
         gt_list=[]
         max_frame=len(imgs)
         for i in range(max_frame):
@@ -210,13 +212,13 @@ class DUFVSR(VSR):
         lr_list=self.sess.run(test_inp,feed_dict={test_gt:gt_list})
         print('Save at {}'.format(save_path))
         print('{} Inputs With Shape {}'.format(lr_list.shape[0],lr_list.shape[1:]))
-        
+
         part=min(part,max_frame)
         if max_frame%part ==0 :
             num_once=max_frame//part
         else:
             num_once=max_frame//part+1
-        
+
         all_time=0
         for i in trange(part):
             st_time=time.time()
@@ -234,11 +236,11 @@ class DUFVSR(VSR):
     def test_video_lr(self, path, name='result', reuse=False, part=8):
         save_path=join(path,name)
         automkdir(save_path)
-        
+
         inp_path=join(path,'blur{}'.format(self.scale))
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
         imgs=np.array([cv2_imread(i)/255. for i in imgs])
-        
+
         lr_list=[]
         max_frame=imgs.shape[0]
         for i in range(max_frame):
@@ -263,7 +265,7 @@ class DUFVSR(VSR):
             num_once=max_frame//part
         else:
             num_once=max_frame//part+1
-        
+
         all_time=0
         for i in trange(part):
             st_time=time.time()
@@ -289,9 +291,9 @@ class DUFVSR(VSR):
                     reuse=True
                 datapath=join(path,k)
                 self.test_video_lr(datapath, name=name, reuse=reuse, part=1000)
-            
-    
-        
+
+
+
 if __name__=='__main__':
     model=DUFVSR()
     #model.train()

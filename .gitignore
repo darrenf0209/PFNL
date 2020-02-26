@@ -3,6 +3,10 @@
 # =============================================== #
 data/train/*
 data/val/*
+test/vid4/*
+test/udm10/*
+/test/udm10/*
+/test/vid4/*
 
 # =============================================== #
 # Ignoring Checkpoint pre-trained models #
@@ -14,3 +18,4 @@ data/val/*
 /checkpoint/mcresnet
 /checkpoint/pfnl
 /checkpoint/vespcn
+*.png

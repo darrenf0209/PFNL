@@ -12,6 +12,8 @@ from modules.videosr_ops import imwarp_forward
 import time
 import os
 from tqdm import trange,tqdm
+# NEW
+import tensorflow.compat.v1 as tf
 
 class VSR(object):
     def __init__(self):

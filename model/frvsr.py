@@ -17,7 +17,7 @@ from model.base_model import VSR
 '''This work tries to rebuild FRVSR (Frame-Recurrent Video Super-Resolution).
 The code is mainly based on https://github.com/psychopa4/MMCNN and https://github.com/jiangsutx/SPMC_VideoSR.
 '''
-        
+
 class FRVSR(VSR):
     def __init__(self):
         self.num_frames=10
@@ -36,8 +36,8 @@ class FRVSR(VSR):
         self.eval_dir='./data/filelist_val.txt'
         self.save_dir='./checkpoint/frvsr'
         self.log_dir='./frvsr.txt'
-            
-        
+
+
     def forward(self, x, xp=None, est=None):
         mf=128
         dk=3
@@ -58,18 +58,18 @@ class FRVSR(VSR):
                 conv1=tf.layers.conv2d(conv0, mf, dk, padding='same', activation=activate,name='conv1_{}'.format(j))
                 conv2=tf.layers.conv2d(conv1, mf, dk, padding='same', activation=None, name='conv2_{}'.format(j))
                 conv0+=conv2
-                
+
             large1=tf.layers.conv2d_transpose(conv0, mf, dk, strides=2, padding='same', activation=activate, name='large1')
             large2=tf.layers.conv2d_transpose(large1, mf, dk, strides=2, padding='same', activation=activate, name='large2')
             out=tf.layers.conv2d(large2, 3, dk, padding='same', activation=None, name='out')
-                
+
         return out
-    
+
     def flow(self, i_t,i_pt):
         mf=128
         dk=3
         activate=tf.nn.leaky_relu
-        
+
         num_block=10
         n,h,w,c=i_t.get_shape().as_list()
         with tf.variable_scope('flow',reuse=tf.AUTO_REUSE) as scope:
@@ -85,7 +85,7 @@ class FRVSR(VSR):
                 for q in range(2):
                     x0=tf.layers.conv2d(x0, 256*(0.5**p), dk, padding='same', activation=activate,name='conv1_{}_{}'.format(p,q))
                 x0=tf.image.resize_images(x0,[h1*(2**(p+1)),w1*(2**(p+1))],method=0)
-            
+
             n2,h2,w2,c2=x0.get_shape().as_list()
             if not (h==h2 and w==w2):
                 x0=tf.image.resize_images(x0,[h,w],method=0)
@@ -103,7 +103,7 @@ class FRVSR(VSR):
 
         return warp_est
 
-                    
+
     def build(self):
         in_h,in_w=self.eval_in_size
         H = tf.placeholder(tf.float32, shape=[None, self.num_frames, None, None, 3], name='H_truth')
@@ -146,7 +146,7 @@ class FRVSR(VSR):
         self.sr_loss, self.eval_mse, self.flow_loss, self.flow_mse= sr_loss, eval_mse, flow_loss, flow_mse
         self.all_loss=self.sr_loss+self.flow_loss
         self.L, self.L_eval, self.H, self.SR =  L, L_eval, H, SR_train
-        
+
     def eval(self):
         print('Evaluating ...')
         if not hasattr(self, 'sess'):
@@ -157,17 +157,17 @@ class FRVSR(VSR):
             self.load(sess, self.save_dir)
         else:
             sess = self.sess
-            
+
         border=8
         in_h,in_w=self.eval_in_size
         out_h = in_h*self.scale #512
         out_w = in_w*self.scale #960
         bd=border//self.scale
-        
+
         filenames=open(self.eval_dir, 'rt').read().splitlines()#sorted(glob.glob(join(self.train_dir,'*')))
         hr_list=[sorted(glob.glob(join(f,'truth','*.png'))) for f in filenames]
         lr_list=[sorted(glob.glob(join(f,'blur{}'.format(self.scale),'*.png'))) for f in filenames]
-        
+
         center=15
         batch_hr = []
         batch_lr = []
@@ -184,7 +184,7 @@ class FRVSR(VSR):
                 gt = [i[border:out_h+border, border:out_w+border, :].astype(np.float32) / 255.0 for i in gt]
                 batch_hr.append(np.stack(gt, axis=0))
                 batch_lr.append(np.stack(inp, axis=0))
-                
+
                 if len(batch_hr) == self.eval_basz:
                     batch_hr = np.stack(batch_hr, 0)
                     batch_lr = np.stack(batch_lr, 0)
@@ -197,7 +197,7 @@ class FRVSR(VSR):
                     batch_lr=[]
                     print('\tEval batch {} - {} ...'.format(batch_cnt, batch_cnt + self.eval_basz))
                     batch_cnt+=self.eval_basz
-                    
+
         psnr_acc = 10 * np.log10(1.0 / mse_acc)
         mse_avg = np.mean(mse_acc, axis=0)
         psnr_avg = np.mean(psnr_acc, axis=0)
@@ -209,14 +209,14 @@ class FRVSR(VSR):
             mse_avg=(mse_avg*1e6).astype(np.int64)/(1e6)
             psnr_avg=(psnr_avg*1e6).astype(np.int64)/(1e6)
             f.write('{'+'"Iter": {} , "PSNR": {}, "MSE": {}'.format(sess.run(self.global_step), psnr_avg.tolist(), mse_avg.tolist())+'}\n')
-    
+
     def train(self):
         LR, HR= self.frvsr_input_producer() #input_producer(train_dir=self.train_dir, batch_size=self.batch_size, scale=self.scale, in_size=self.in_size, num_frames=self.num_frames)
         global_step=tf.Variable(initial_value=0, trainable=False)
         self.global_step=global_step
         self.build()
         lr= tf.train.polynomial_decay(self.learning_rate, global_step, self.decay_step, end_learning_rate=self.end_lr, power=1.)
-        
+
         vars_all=tf.trainable_variables()
         vars_sr = [v for v in vars_all if 'frvsr' in v.name]
         vars_flow = [v for v in vars_all if 'flow' in v.name]
@@ -225,15 +225,15 @@ class FRVSR(VSR):
         print('Params num of sr:',get_num_params(vars_sr))
         print('Params num of all:',get_num_params(vars_all))
         training_op = tf.train.AdamOptimizer(lr).minimize(self.all_loss, var_list=vars_all, global_step=global_step)
-        
-        
-        config = tf.ConfigProto() 
+
+
+        config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
-        sess = tf.Session(config=config) 
+        sess = tf.Session(config=config)
         #sess=tf.Session()
         self.sess=sess
         sess.run(tf.global_variables_initializer())
-        
+
         self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
         if self.reload:
             self.load(sess, self.save_dir)
@@ -247,7 +247,7 @@ class FRVSR(VSR):
         for step in range(gs, self.max_step):
             if step>gs and step%20==0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v))
-                
+
             if step % 500 == 0:
                 if step>gs:
                     self.save(sess, self.save_dir, step)
@@ -260,29 +260,29 @@ class FRVSR(VSR):
 
             lr1,hr=sess.run([LR,HR])
             _,loss_v=sess.run([training_op,self.all_loss],feed_dict={self.L:lr1, self.H:hr})
-            
+
             if step>500 and loss_v>10:
                 print('Model collapsed with loss={}'.format(loss_v))
                 break
-                
-            
+
+
     def test_video(self, path, name='result', reuse=False):
         save_path=join(path,name)
         automkdir(save_path)
-        
+
         inp_path=join(path,'blur{}'.format(self.scale))
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
         imgs=np.array([cv2_imread(i)/255. for i in imgs])
         n,h,w,c=imgs.shape
         max_frame=n
-        
+
         self.L = tf.placeholder(tf.float32, shape=[1, h, w, 3], name='L_input')
         self.LP = tf.placeholder(tf.float32, shape=[1, h, w, 3], name='Previous_L_input')
         self.est=tf.placeholder(tf.float32, shape=[1, h*self.scale, w*self.scale, 3], name='est')
         self.sr0 = self.forward(self.L)
         self.sr1 = self.forward(self.L, self.LP, self.est)
         if not reuse:
-            config = tf.ConfigProto() 
+            config = tf.ConfigProto()
             config.gpu_options.allow_growth = True
             sess = tf.Session(config=config)
             #sess=tf.Session()
@@ -290,7 +290,7 @@ class FRVSR(VSR):
             sess.run(tf.global_variables_initializer())
             self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
             self.load(sess, self.save_dir)
-        
+
         print('Save at {}'.format(save_path))
         print('{} Inputs With Shape {}'.format(imgs.shape[0],imgs.shape[1:]))
 
@@ -320,8 +320,8 @@ class FRVSR(VSR):
                     reuse=True
                 datapath=join(path,k)
                 self.test_video(datapath, name=name, reuse=reuse)
-    
-        
+
+
 if __name__=='__main__':
     model=FRVSR()
     model.train()

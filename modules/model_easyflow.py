@@ -3,7 +3,10 @@ import glob
 import time
 import tensorflow as tf
 import numpy as np
-import tensorflow.contrib.slim as slim
+# OLD
+# import tensorflow.contrib.slim as slim
+# NEW
+import tf_slim as slim
 import subprocess
 from datetime import datetime
 from tensorflow.python.ops import control_flow_ops

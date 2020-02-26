@@ -1,8 +1,11 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import control_flow_ops
+# re-do slim
+import tf_slim as slim
 
-slim = tf.contrib.slim
+# OLD
+#slim = tf.contrib.slim
 
 
 def im2uint8(x):

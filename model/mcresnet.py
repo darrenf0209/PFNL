@@ -3,7 +3,10 @@ import time
 import glob
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
+# OLD
+# import tensorflow.contrib.slim as slim
+# NEW
+import tf_slim as slim
 from tensorflow.python.ops import control_flow_ops
 import random
 import subprocess
@@ -22,6 +25,8 @@ import random
 from utils import cv2_imsave,cv2_imread,automkdir,get_num_params
 from tqdm import tqdm,trange
 from model.base_model import VSR
+# NEW
+import tensorflow.compat.v1 as tf
 
 '''This work tries to rebuild MCResNet (Video Super-Resolution via Motion Compensation and Deep Residual Learning).
 The code is mainly based on https://github.com/psychopa4/MMCNN and https://github.com/jiangsutx/SPMC_VideoSR.
@@ -106,7 +111,7 @@ class MCRESNET(VSR):
 
                     conv6 = slim.conv2d(conv2, 16, [3, 3], scope='conv6')
                     large2x = modules.ps._PS(conv6, 2, 4)
-                    
+
                     rnn_out = slim.conv2d(large2x, 4, [3, 3], activation_fn=None, scope='rnn_out')
                     rnn_out = modules.ps._PS(rnn_out, 2, 1)
                     rnn_out = rnn_out + frame_bic_ref
@@ -244,9 +249,9 @@ class MCRESNET(VSR):
         print('params num of sr:',get_num_params(vars_sr))
         print('params num of all:',get_num_params(vars_all))
 
-        config = tf.ConfigProto() 
+        config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
-        sess = tf.Session(config=config) 
+        sess = tf.Session(config=config)
         #sess=tf.Session()
         self.sess=sess
         sess.run(tf.global_variables_initializer())
@@ -357,9 +362,9 @@ class MCRESNET(VSR):
                 output_rgb = output_rgb[:, :, :out_h, :out_w, :]
 
             if reuse == False:
-                config = tf.ConfigProto() 
+                config = tf.ConfigProto()
                 config.gpu_options.allow_growth = True
-                sess = tf.Session(config=config) 
+                sess = tf.Session(config=config)
                 #sess=tf.Session()
                 self.sess=sess
                 self.saver = tf.train.Saver(max_to_keep=50, keep_checkpoint_every_n_hours=1)

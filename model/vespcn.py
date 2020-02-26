@@ -3,7 +3,10 @@ import time
 import glob
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
+# OLD
+#import tensorflow.contrib.slim as slim
+# NEW
+import tf_slim as slim
 from tensorflow.python.ops import control_flow_ops
 import random
 import subprocess
@@ -22,6 +25,8 @@ import random
 from utils import cv2_imsave,cv2_imread,automkdir,get_num_params
 from tqdm import tqdm,trange
 from model.base_model import VSR
+# NEW
+import tensorflow.compat.v1 as tf
 
 '''This work tries to rebuild VESPCN (Real-Time Video Super-Resolution with Spatio-Temporal Networks and Motion Compensation).
 The code is mainly based on https://github.com/psychopa4/MMCNN and https://github.com/jiangsutx/SPMC_VideoSR.

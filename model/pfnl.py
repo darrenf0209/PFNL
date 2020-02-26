@@ -206,11 +206,14 @@ class PFNL(VSR):
 
 
 
-    def test_video_truth(self, path, name='result', reuse=False, part=50):
+    def test_video_truth(self, path, name='result', reuse=True, part=50):
         save_path=join(path,name)
+        print("Save Path: {}".format(save_path))
         automkdir(save_path)
         inp_path=join(path,'truth')
+        print("Input Path: {}".format(inp_path))
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
+        print("Image: {}",format(imgs))
         max_frame=len(imgs)
         imgs=np.array([cv2_imread(i) for i in imgs])/255.
 
@@ -324,9 +327,10 @@ class PFNL(VSR):
         if max_frame>0:
             all_time=np.array(all_time)
             print('spent {} s in total and {} s in average'.format(np.sum(all_time),np.mean(all_time[1:])))
-
+# Change the path
     def testvideos(self, path='/dev/f/data/video/test2/udm10', start=0, name='pfnl'):
         kind=sorted(glob.glob(join(path,'*')))
+        print("kind: {}".format(kind))
         kind=[k for k in kind if os.path.isdir(k)]
         reuse=False
         for k in kind:
@@ -335,10 +339,12 @@ class PFNL(VSR):
                 if idx>start:
                     reuse=True
                 datapath=join(path,k)
-                self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
+                print("Datapath: {}".format(datapath))
+                #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
+                self.test_video_truth(k, name='folder', reuse=False, part=1000)
 
 
 if __name__=='__main__':
     model=PFNL()
     model.train()
-    #model.testvideos()
+    model.testvideos()

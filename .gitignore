@@ -3,13 +3,12 @@
 # =============================================== #
 data/train/*
 data/val/*
-test/vid4/*
-test/udm10/*
 /test/udm10/*
 /test/vid4/*
+*.png
 
 # =============================================== #
-# Ignoring Checkpoint pre-trained models #
+# Ignoring Checkpoint pre-trained models          #
 # =============================================== #
 /checkpoint/drvsr
 /checkpoint/duf_52
@@ -18,4 +17,9 @@ test/udm10/*
 /checkpoint/mcresnet
 /checkpoint/pfnl
 /checkpoint/vespcn
-*.png
+
+# =============================================== #
+# Ignoring workspaces        #
+# =============================================== #
+.idea/*
+

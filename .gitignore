@@ -1,1 +1,16 @@
-data/*
+# =============================================== #
+# Ignoring files used for training and evaluating #
+# =============================================== #
+data/train/*
+data/val/*
+
+# =============================================== #
+# Ignoring Checkpoint pre-trained models #
+# =============================================== #
+/checkpoint/drvsr
+/checkpoint/duf_52
+/checkpoint/frvsr
+/checkpoint/ltdvsr
+/checkpoint/mcresnet
+/checkpoint/pfnl
+/checkpoint/vespcn

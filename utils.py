@@ -12,6 +12,8 @@ from tensorflow.python.layers.convolutional import Conv2D,conv2d
 from tensorflow.python.layers.pooling import AveragePooling2D,average_pooling2d
 import functools, inspect
 import random
+# NEW
+import tensorflow.compat.v1 as tf
 
 
 
@@ -40,7 +42,7 @@ def NonLocalBlock(input_x, out_channels, sub_sample=1, nltype=0 ,is_bn=False, sc
                     theta = conv2d(input_x, out_channels, 1, strides=1, padding='same', name='theta')
                 elif nltype==1:
                     theta = input_x
-            
+
             g_x = tf.reshape(g, [batchsize, -1,out_channels])
             theta_x = tf.reshape(theta, [batchsize, -1, out_channels])
 
@@ -100,7 +102,7 @@ def gkern(kernlen=13, nsig=1.6):
     inp[kernlen//2, kernlen//2] = 1
     # gaussian-smooth the dirac, resulting in a gaussian filter mask
     return fi.gaussian_filter(inp, nsig)
-    
+
 BLUR = gkern(13, 1.6)  # 13 and 1.6 for x4
 BLUR = BLUR[:,:,np.newaxis,np.newaxis].astype(np.float32)
 
@@ -143,7 +145,7 @@ def DownSample(x, h, scale=4):
     ds_x = tf.shape(x)
 
     x = tf.reshape(x, [ds_x[0]*ds_x[1], ds_x[2], ds_x[3], 3])
-    
+
     # Reflect padding
     W = tf.constant(h)
 
@@ -158,17 +160,17 @@ def DownSample(x, h, scale=4):
     pad_left = pad_width // 2
     pad_right = pad_width - pad_left
     pad_array = [[0,0], [pad_top, pad_bottom], [pad_left, pad_right], [0,0]]
-    
+
     depthwise_F = tf.tile(W, [1, 1, 3, 1])
     y = tf.nn.depthwise_conv2d(tf.pad(x, pad_array, mode='REFLECT'), depthwise_F, [1, scale, scale, 1], 'VALID')
-    
+
     ds_y = tf.shape(y)
     y = tf.reshape(y, [ds_x[0], ds_x[1], ds_y[1], ds_y[2], 3])
     return y
-    
+
 def DownSample_4D(x, h, scale=4):
     ds_x = tf.shape(x)
-    
+
     # Reflect padding
     W = tf.constant(h)
 
@@ -183,10 +185,10 @@ def DownSample_4D(x, h, scale=4):
     pad_left = pad_width // 2
     pad_right = pad_width - pad_left
     pad_array = [[0,0], [pad_top, pad_bottom], [pad_left, pad_right], [0,0]]
-    
+
     depthwise_F = tf.tile(W, [1, 1, 3, 1])
     y = tf.nn.depthwise_conv2d(tf.pad(x, pad_array, mode='REFLECT'), depthwise_F, [1, scale, scale, 1], 'VALID')
-    
+
     ds_y = tf.shape(y)
     y = tf.reshape(y, [ds_x[0], ds_y[1], ds_y[2], 3])
     return y
@@ -245,8 +247,12 @@ def AVG_PSNR(vid_true, vid_pred, vmin=0, vmax=255, t_border=2, sp_border=8, is_T
 
     return np.mean(np.asarray(psnrs))
 
-
-he_normal_init = tf.contrib.layers.variance_scaling_initializer(factor=2.0, mode='FAN_IN', uniform=False)
+# OLD
+# he_normal_init = tf.contrib.layers.variance_scaling_initializer(factor=2.0, mode='FAN_IN', uniform=False)
+# New
+he_normal_init = tf.keras.initializers.VarianceScaling(
+    scale=2.0, mode='fan_in', distribution='truncated_normal', seed=None
+)
 
 def BatchNorm(input, is_train, decay=0.999, name='BatchNorm'):
     '''
@@ -256,16 +262,16 @@ def BatchNorm(input, is_train, decay=0.999, name='BatchNorm'):
     '''
     from tensorflow.python.training import moving_averages
     from tensorflow.python.ops import control_flow_ops
-    
+
     axis = list(range(len(input.get_shape()) - 1))
     fdim = input.get_shape()[-1:]
-    
+
     with tf.variable_scope(name):
         beta = tf.get_variable('beta', fdim, initializer=tf.constant_initializer(value=0.0))
         gamma = tf.get_variable('gamma', fdim, initializer=tf.constant_initializer(value=1.0))
         moving_mean = tf.get_variable('moving_mean', fdim, initializer=tf.constant_initializer(value=0.0), trainable=False)
         moving_variance = tf.get_variable('moving_variance', fdim, initializer=tf.constant_initializer(value=0.0), trainable=False)
-  
+
         def mean_var_with_update():
             batch_mean, batch_variance = tf.nn.moments(input, axis)
             update_moving_mean = moving_averages.assign_moving_average(moving_mean, batch_mean, decay, zero_debias=True)
@@ -284,7 +290,7 @@ def Conv3D(input, kernel_shape, strides, padding, name='Conv3d', W_initializer=h
             b = tf.get_variable("b", (kernel_shape[-1]),initializer=tf.constant_initializer(value=0.0))
         else:
             b = 0
-        
+
     return tf.nn.conv3d(input, W, strides, padding) + b
 
 def LoadParams(sess, params, in_file='parmas.hdf5'):
@@ -293,7 +299,7 @@ def LoadParams(sess, params, in_file='parmas.hdf5'):
     assign_ops = []
     # Flatten list
     params = [item for sublist in params for item in sublist]
-    
+
     for param in params:
         flag = False
         for idx, name in enumerate(g):
@@ -304,29 +310,29 @@ def LoadParams(sess, params, in_file='parmas.hdf5'):
                     parsed_name[i] = '/'
             parsed_name = ''.join(parsed_name)
             parsed_name = parsed_name.replace('__','_')
-            
+
             if param.name == parsed_name:
                 flag = True
 #                print(param.name)
                 assign_ops += [param.assign(g[name][()])]
-                
+
         if not flag:
              print('Warning::Cant find param: {}, ignore if intended.'.format(param.name))
-    
-    sess.run(assign_ops)    
-    
+
+    sess.run(assign_ops)
+
     print('Parameters are loaded')
 
 def depth_to_space_3D(x, block_size):
     ds_x = tf.shape(x)
     x = tf.reshape(x, [ds_x[0]*ds_x[1], ds_x[2], ds_x[3], ds_x[4]])
-    
+
     y = tf.depth_to_space(x, block_size)
-    
+
     ds_y = tf.shape(y)
     x = tf.reshape(y, [ds_x[0], ds_x[1], ds_y[1], ds_y[2], ds_y[3]])
     return x
-    
+
 def DynFilter3D(x, F, filter_size):
     '''
     3D Dynamic filtering
@@ -337,7 +343,7 @@ def DynFilter3D(x, F, filter_size):
     # make tower
     with tf.variable_scope('DynFilter3D',reuse=tf.AUTO_REUSE) as scope:
         filter_localexpand_np = np.reshape(np.eye(np.prod(filter_size), np.prod(filter_size)), (filter_size[1], filter_size[2], filter_size[0], np.prod(filter_size)))
-        filter_localexpand = tf.Variable(filter_localexpand_np, dtype='float32',name='filter_localexpand')#,trainable=False) 
+        filter_localexpand = tf.Variable(filter_localexpand_np, dtype='float32',name='filter_localexpand')#,trainable=False)
         #filter_localexpand = tf.get_variable('filter_localexpand', initializer=filter_localexpand_np)
         x = tf.transpose(x, perm=[0,2,3,1])
         x_localexpand = tf.nn.conv2d(x, filter_localexpand, [1,1,1,1], 'SAME') # b, h, w, 1*5*5
@@ -346,7 +352,7 @@ def DynFilter3D(x, F, filter_size):
         x = tf.squeeze(x, axis=3) # b, h, w, R*R
 
     return x
-    
+
 def Huber(y_true, y_pred, delta, axis=None):
     abs_error = tf.abs(y_pred - y_true)
     quadratic = tf.minimum(abs_error, delta)

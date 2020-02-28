@@ -103,7 +103,7 @@ class PFNL(VSR):
             self.load(sess, self.save_dir)
         else:
             sess = self.sess
-
+        print('Saved directory: {}'.format(self.save_dir))
         border=8
         in_h,in_w=self.eval_in_size
         out_h = in_h*self.scale #512
@@ -114,6 +114,7 @@ class PFNL(VSR):
         eval_inp=DownSample(eval_gt, BLUR, scale=self.scale)
 
         filenames=open(self.eval_dir, 'rt').read().splitlines()#sorted(glob.glob(join(self.eval_dir,'*')))
+        print("Filenames: {}".format(filenames))
         gt_list=[sorted(glob.glob(join(f,'truth','*.png'))) for f in filenames]
 
         center=15
@@ -213,8 +214,9 @@ class PFNL(VSR):
         inp_path=join(path,'truth')
         print("Input Path: {}".format(inp_path))
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
-        print("Image: {}",format(imgs))
+        print("Image: {}".format(imgs))
         max_frame=len(imgs)
+        print("Number of frames: {}".format(max_frame))
         imgs=np.array([cv2_imread(i) for i in imgs])/255.
 
         if part>max_frame:
@@ -341,7 +343,7 @@ class PFNL(VSR):
                 datapath=join(path,k)
                 print("Datapath: {}".format(datapath))
                 #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
-                self.test_video_truth(k, name='folder', reuse=False, part=1000)
+                self.test_video_truth(k, name='Result', reuse=False, part=1000)
 
 
 if __name__=='__main__':

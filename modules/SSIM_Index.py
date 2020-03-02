@@ -28,9 +28,9 @@ def compute_ssim(im1, im2, l=255):
     k_2 = 0.03
     c_2 = (k_2 * l)**2
 
-    # window = np.ones((8, 8))
+    window = np.ones((8, 8))
 
-    window = gauss_2d((11, 11), 1.5)
+    # window = gauss_2d((11, 11), 1.5)
     # Normalization
     # window /= np.sum(window)
 

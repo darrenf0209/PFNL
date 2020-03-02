@@ -1,4 +1,11 @@
 import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+########################################################
+# 0 = all messages are logged (default behavior)
+# 1 = INFO messages are not printed
+# 2 = INFO and WARNING messages are not printed
+# 3 = INFO, WARNING, and ERROR messages are not printed
+########################################################
 # from model.vespcn import VESPCN
 # from model.ltdvsr import LTDVSR
 # from model.mcresnet import MCRESNET
@@ -14,6 +21,7 @@ if __name__=='__main__':
     print('Model loaded!')
     model.train()
     print('Training finished')
-    model.eval()
-    #model.testvideos('test\\udm10\\')
-    #print('Finished')
+    # model.eval()
+    # model.testvideos('test\\udm10\\')
+    model.testvideos('test\\vid4\\')
+    # print('Finished')

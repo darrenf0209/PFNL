@@ -1,3 +1,11 @@
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+########################################################
+# 0 = all messages are logged (default behavior)
+# 1 = INFO messages are not printed
+# 2 = INFO and WARNING messages are not printed
+# 3 = INFO, WARNING, and ERROR messages are not printed
+########################################################
 import tensorflow as tf
 from tensorflow.python.ops import control_flow_ops
 from os.path import join,exists
@@ -18,9 +26,10 @@ import tensorflow.compat.v1 as tf
 '''This is the official code of PFNL (Progressive Fusion Video Super-Resolution Network via Exploiting Non-Local Spatio-Temporal Correlations).
 The code is mainly based on https://github.com/psychopa4/MMCNN and https://github.com/jiangsutx/SPMC_VideoSR.
 '''
-
+# Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
+        # Initialize variables with respect to images, training, evaluating and directory locations
         self.num_frames=7
         self.scale=4
         self.in_size=32
@@ -39,15 +48,16 @@ class PFNL(VSR):
         self.log_dir='./pfnl.txt'
 
     def forward(self, x):
+        # Filters: dimensionality of output space
         mf=64
+        # Kernel size: Height and width of the 2D convolution window
         dk=3
+        # Leaky ReLU activation function
         activate=tf.nn.leaky_relu
         num_block=20
         n,f1,w,h,c=x.shape
-        # OLD
-        # ki=tf.contrib.layers.xavier_initializer()
-        # New
-        ki = tf.keras.initializers.glorot_normal(seed=None)
+        ki = tf.keras.initializers.glorot_normal(seed=None) # Replaces ki=tf.contrib.layers.xavier_initializer()
+        # Stride length
         ds=1
         with tf.variable_scope('nlvsr',reuse=tf.AUTO_REUSE) as scope:
             conv0=Conv2D(mf, 5, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv0')
@@ -329,7 +339,7 @@ class PFNL(VSR):
         if max_frame>0:
             all_time=np.array(all_time)
             print('spent {} s in total and {} s in average'.format(np.sum(all_time),np.mean(all_time[1:])))
-# Change the path
+    # Default path written by authors
     def testvideos(self, path='/dev/f/data/video/test2/udm10', start=0, name='pfnl'):
         kind=sorted(glob.glob(join(path,'*')))
         print("kind: {}".format(kind))

@@ -20,7 +20,7 @@ from tensorflow.python.layers.convolutional import Conv2D,conv2d
 from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, get_num_params, cv2_imread, cv2_imsave, automkdir
 from tqdm import tqdm,trange
 from model.base_model import VSR
-# NEW
+# TensorFlow back-compatability
 import tensorflow.compat.v1 as tf
 
 '''This is the official code of PFNL (Progressive Fusion Video Super-Resolution Network via Exploiting Non-Local Spatio-Temporal Correlations).
@@ -30,6 +30,8 @@ The code is mainly based on https://github.com/psychopa4/MMCNN and https://githu
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
+        # Take seven 32x32 LR frames as input to compute calculation cost
+        # LR frames under 4 x SR
         self.num_frames=7
         self.scale=4
         self.in_size=32
@@ -37,6 +39,7 @@ class PFNL(VSR):
         self.eval_in_size=[128,240]
         self.batch_size=16
         self.eval_basz=4
+        # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate=1e-3
         self.end_lr=1e-4
         self.reload=True
@@ -48,18 +51,22 @@ class PFNL(VSR):
         self.log_dir='./pfnl.txt'
 
     def forward(self, x):
+        # Build a network with 11 convolutional layers, not including merge and magnification module in the tail
         # Filters: dimensionality of output space
+        # Based on PFS-PS, set the convolutional layer filter as 64
         mf=64
         # Kernel size: Height and width of the 2D convolution window
         dk=3
-        # Leaky ReLU activation function
+        # Leaky ReLU activation function after each convolutional layer
         activate=tf.nn.leaky_relu
+        # First design the network adopting proposed PFRBs, denoted PFS. The main body contains 20 PFRBs
         num_block=20
         n,f1,w,h,c=x.shape
         ki = tf.keras.initializers.glorot_normal(seed=None) # Replaces ki=tf.contrib.layers.xavier_initializer()
         # Stride length
         ds=1
         with tf.variable_scope('nlvsr',reuse=tf.AUTO_REUSE) as scope:
+            # First convolutional layer uses a 5x5 kernel for a big receptive field (the rest use a 3x3 kernel)
             conv0=Conv2D(mf, 5, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv0')
             conv1=[Conv2D(mf, dk, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv1_{}'.format(i)) for i in range(num_block)]
             conv10=[Conv2D(mf, 1, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv10_{}'.format(i)) for i in range(num_block)]

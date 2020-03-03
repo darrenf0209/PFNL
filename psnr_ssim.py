@@ -13,44 +13,23 @@ import pathlib
 import tensorflow as tf
 
 vid4 = ['calendar', 'city', 'foliage', 'walk']
-psnr_avgs = []
-ssim_avgs = []
-# This generic approach works for udm10 as the file names are equivalent in 'truth' and 'result_pfnl
-for folder in vid4:
-    path_to_truth = F"./test/vid4/{folder}/truth"
-    path_to_result = F"./test/vid4/{folder}/result_pfnl"
-    # print(path_to_truth)
-    psnr_vals = []
-    ssim_vals = []
-    for filename in os.listdir(path_to_truth):
-        # print(filename)
-        original = cv2.imread(os.path.join(path_to_truth, filename))
-        contrast = cv2.imread(os.path.join(path_to_result, filename))
-        original = tf.image.convert_image_dtype(original, tf.float32)
-        contrast = tf.image.convert_image_dtype(contrast, tf.float32)
-        psnr = tf.image.psnr(original, contrast, max_val=1.0)
-        ssim = tf.image.ssim(original, contrast, max_val=1.0, filter_size=11, filter_sigma=1.5, k1=0.01, k2=0.03)
-        psnr_vals.append(psnr)
-        ssim_vals.append(ssim)
-    psnr_avg = np.mean(psnr_vals)
-    psnr_avgs.append(psnr_avg)
-    ssim_avg = np.mean(ssim_vals)
-    ssim_avgs.append(ssim_avg)
-    print("vid4/{:<10} | Average PSNR: {:<10.2f} | Average SSIM: {:<10.4f}".format(folder, psnr_avg, ssim_avg))
-print("vid4 | Average of Averages PSNR: {:<10.2f}| Average of Averages SSIM: {:<10.4f}".format(np.mean(psnr_avgs), np.mean(ssim_avgs)))
-
 udm10 = ['archpeople', 'archwall', 'auditorium', 'band', 'caffe', 'camera', 'clap', 'lake', 'photography', 'polyflow']
+concat_list = vid4 + udm10
 psnr_avgs = []
 ssim_avgs = []
-# This generic approach works for udm10 as the file names are equivalent in 'truth' and 'result_pfnl
-for folder in udm10:
-    path_to_truth = F"./test/udm10/{folder}/truth"
-    path_to_result = F"./test/udm10/{folder}/result_pfnl"
-    # print(path_to_truth)
+print(vid4 + udm10)
+for i in range(len(concat_list)):
+    if i < len(vid4):
+        upper_dir = 'vid4'
+    else:
+        upper_dir = 'udm10'
+    folder = concat_list[i]
+    path_to_truth = F"./test/{upper_dir}/{folder}/truth"
+    path_to_result = F"./test/{upper_dir}/{folder}/result_pfnl"
     psnr_vals = []
     ssim_vals = []
     for filename in os.listdir(path_to_truth):
-        # print(filename)
+        #print(filename)
         original = cv2.imread(os.path.join(path_to_truth, filename))
         contrast = cv2.imread(os.path.join(path_to_result, filename))
         original = tf.image.convert_image_dtype(original, tf.float32)
@@ -63,5 +42,10 @@ for folder in udm10:
     psnr_avgs.append(psnr_avg)
     ssim_avg = np.mean(ssim_vals)
     ssim_avgs.append(ssim_avg)
-    print("udm10/{:<10} | Average PSNR: {:<10.2f} | Average SSIM: {:<10.4f}".format(folder, psnr_avg, ssim_avg))
-print("udm10 | Average of Averages PSNR: {:<10.2f}| Average of Averages SSIM: {:<10.4f}".format(np.mean(psnr_avgs), np.mean(ssim_avgs)))
+    print("{}/{:<20} | Average PSNR: {:<10.2f} | Average SSIM: {:<10.4f}".format(upper_dir, folder, psnr_avg, ssim_avg))
+    if i == (len(vid4)-1):
+        print("{:25} | Average PSNR: {:<10.2f}| Average SSIM: {:<10.4f}".format(upper_dir, np.mean(psnr_avgs), np.mean(ssim_avgs)))
+        psnr_avgs = []
+        ssim_avgs = []
+    elif i == (len(concat_list)-1):
+        print("{:25} | Average PSNR: {:<10.2f}| Average SSIM: {:<10.4f}".format(upper_dir, np.mean(psnr_avgs), np.mean(ssim_avgs)))

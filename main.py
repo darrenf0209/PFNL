@@ -1,5 +1,5 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ########################################################
 # 0 = all messages are logged (default behavior)
 # 1 = INFO messages are not printed
@@ -23,5 +23,5 @@ if __name__=='__main__':
     print('Training finished')
     # model.eval()
     # model.testvideos('test\\udm10\\')
-    model.testvideos('test\\vid4\\')
+    #model.testvideos('test\\vid4\\')
     # print('Finished')

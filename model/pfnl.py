@@ -1,5 +1,5 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ########################################################
 # 0 = all messages are logged (default behavior)
 # 1 = INFO messages are not printed
@@ -75,10 +75,15 @@ class PFNL(VSR):
             convmerge2=Conv2D(12, 3, strides=ds, padding='same', activation=None, kernel_initializer=ki, name='convmerge2')
 
             inp0=[x[:,i,:,:,:] for i in range(f1)]
+            print(inp0)
             inp0=tf.concat(inp0,axis=-1)
+            print(inp0)
             inp1=tf.space_to_depth(inp0,2)
+            print(inp1)
             inp1=NonLocalBlock(inp1,int(c)*self.num_frames*4,sub_sample=1,nltype=1,scope='nlblock_{}'.format(0))
+            print(inp1)
             inp1=tf.depth_to_space(inp1,2)
+            print(inp1)
             inp0+=inp1
             inp0=tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
             inp0=[conv0(f) for f in inp0]
@@ -103,12 +108,18 @@ class PFNL(VSR):
 
     def build(self):
         in_h,in_w=self.eval_in_size
+        # H is the corresponding HR centre frame
         H = tf.placeholder(tf.float32, shape=[None, 1, None, None, 3], name='H_truth')
+        # I is L_train, representing the input LR frames
         L_train = tf.placeholder(tf.float32, shape=[self.batch_size, self.num_frames, self.in_size, self.in_size, 3], name='L_train')
         L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, self.num_frames, in_h, in_w, 3], name='L_eval')
+        # SR denotes the function of the super-resolution network
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
+        # Charbonnier Loss Function (differentiable variant of L1 norm)
+        # epsilon is empirically set to 10e-3
         loss=tf.reduce_mean(tf.sqrt((SR_train-H)**2+1e-6))
+        # Evaluate mean squared error
         eval_mse=tf.reduce_mean((SR_eval-H) ** 2, axis=[2,3,4])
         self.loss, self.eval_mse= loss, eval_mse
         self.L, self.L_eval, self.H, self.SR =  L_train, L_eval, H, SR_train
@@ -173,32 +184,41 @@ class PFNL(VSR):
 
     def train(self):
         LR, HR= self.single_input_producer()
+        print("LR: {}, HR: {}".format(LR, HR))
         global_step=tf.Variable(initial_value=0, trainable=False)
+        print("Global step: {}".format(global_step))
         self.global_step=global_step
+        # Proceed to build the NN
         self.build()
         lr= tf.train.polynomial_decay(self.learning_rate, global_step, self.decay_step, end_learning_rate=self.end_lr, power=1.)
 
         vars_all=tf.trainable_variables()
-        # UNCOMMENT THIS
-        #print('Params num of all:',get_num_params(vars_all))
+        #print('Params num of all:',get_num_params(vars_all)) # This throws error: 'int' object has not attribute 'value'
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
 
-
+        # TF configures the session
         config = tf.ConfigProto()
+        # Attempt to allocate only as much GPU memory based on runtime allocations
+        # Starts allocating little memory, and as Sessions continues to run, more GPU memory is needed and the region is extended
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         #sess=tf.Session()
         self.sess=sess
+        # Output tensors and metadata obtained when executing a session
         sess.run(tf.global_variables_initializer())
-
+        # Save class adds the ability to save and restore variables to and from checkpoints
+        # max_to_keep indicates the maximum number of recent checkpoint files to keep (default is 5)
+        # keep_checkpoint_every_n_hours here means keep 1 checkpoint every hour of training
         self.saver = tf.train.Saver(max_to_keep=50, keep_checkpoint_every_n_hours=1)
         if self.reload:
             self.load(sess, self.save_dir)
-
+        # Mechanism to coordinate the termination of a set of threads
         coord = tf.train.Coordinator()
+        # Starts all queue runners collected in the graph (deprecated)
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         cost_time=0
+        # Begin timing the training
         start_time=time.time()
         gs=sess.run(global_step)
         for step in range(sess.run(global_step), self.max_step):

@@ -19,12 +19,14 @@ data/val/*
 /checkpoint/vespcn
 
 # =============================================== #
-# Ignoring workspaces                             #
+# Ignoring workspaces and cache                   #
 # =============================================== #
 .idea/*
-
+__pycachee__/*
+/model/__pycache__/*
 
 # =============================================== #
 # Ignoring logging files                          #
 # =============================================== #
 pfnl.txt
+*.pyc

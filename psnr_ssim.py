@@ -38,9 +38,10 @@ for i in range(len(concat_list)):
         ssim = tf.image.ssim(original, contrast, max_val=1.0, filter_size=11, filter_sigma=1.5, k1=0.01, k2=0.03)
         psnr_vals.append(psnr)
         ssim_vals.append(ssim)
-    psnr_avg = np.mean(psnr_vals)
+    # Ignore first frame and last two frames, based on research paper
+    psnr_avg = np.mean(psnr_vals[1:-2])
     psnr_avgs.append(psnr_avg)
-    ssim_avg = np.mean(ssim_vals)
+    ssim_avg = np.mean(ssim_vals[1:-2])
     ssim_avgs.append(ssim_avg)
     print("{}/{:<20} | Average PSNR: {:<10.2f} | Average SSIM: {:<10.4f}".format(upper_dir, folder, psnr_avg, ssim_avg))
     if i == (len(vid4)-1):

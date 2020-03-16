@@ -60,50 +60,86 @@ class PFNL(VSR):
         # Leaky ReLU activation function after each convolutional layer
         activate=tf.nn.leaky_relu
         # First design the network adopting proposed PFRBs, denoted PFS. The main body contains 20 PFRBs
+        # Note in the research paper, they only show 5
         num_block=20
+        # n = number of layers
+        # f1 = filters
+        # w = width
+        # h = height
+        # c = channels (depth)
         n,f1,w,h,c=x.shape
         ki = tf.keras.initializers.glorot_normal(seed=None) # Replaces ki=tf.contrib.layers.xavier_initializer()
         # Stride length
         ds=1
         with tf.variable_scope('nlvsr',reuse=tf.AUTO_REUSE) as scope:
+            # Gathering all the convolutional layers for the CNN
             # First convolutional layer uses a 5x5 kernel for a big receptive field (the rest use a 3x3 kernel)
             conv0=Conv2D(mf, 5, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv0')
+            # Preparing the convolutional layers to be used in the PFRB
             conv1=[Conv2D(mf, dk, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv1_{}'.format(i)) for i in range(num_block)]
+            # 1x1 conv is used to refine the deep feature map, to avoid too many parameters
+
             conv10=[Conv2D(mf, 1, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv10_{}'.format(i)) for i in range(num_block)]
             conv2=[Conv2D(mf, dk, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv2_{}'.format(i)) for i in range(num_block)]
+            # Used for the 3x3 convolutional layers, as per the architecture
             convmerge1=Conv2D(48, 3, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='convmerge1')
             convmerge2=Conv2D(12, 3, strides=ds, padding='same', activation=None, kernel_initializer=ki, name='convmerge2')
 
+            # Creating I_0
             inp0=[x[:,i,:,:,:] for i in range(f1)]
+            print("***Inp0***")
             print(inp0)
+            # Joining to the end
             inp0=tf.concat(inp0,axis=-1)
             print(inp0)
+            # Rearrange blocks of spatial data into depth; height and width dimensions are moved to depth
             inp1=tf.space_to_depth(inp0,2)
             print(inp1)
+            # Non Local Resblock
             inp1=NonLocalBlock(inp1,int(c)*self.num_frames*4,sub_sample=1,nltype=1,scope='nlblock_{}'.format(0))
             print(inp1)
             inp1=tf.depth_to_space(inp1,2)
             print(inp1)
+            # Concatenation
             inp0+=inp1
             inp0=tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
+            # 5x5 convolutional step, before entering the PFRB
             inp0=[conv0(f) for f in inp0]
+            # Only resizing the shape
             bic=tf.image.resize_images(x[:,self.num_frames//2,:,:,:],[w*self.scale,h*self.scale],method=2)
 
+            # Structure and assembly of PFRB
+            # After the 5x5 conv layer, add in the num_blocks of PFRBs to make full extraction of both
+            # inter-frame and temporal correlations among multiple LR frames
             for i in range(num_block):
-                inp1=[conv1[i](f) for f in inp0]
-                base=tf.concat(inp1,axis=-1)
-                base=conv10[i](base)
-                inp2=[tf.concat([base,f],-1) for f in inp1]
-                inp2=[conv2[i](f) for f in inp2]
-                inp0=[tf.add(inp0[j],inp2[j]) for j in range(f1)]
+                # I_1 obtained from the first 3x3 convolution. It denotes feature maps extracted
+                I_1=[conv1[i](f) for f in inp0]
+                # All I_1 feature maps are concatenated and marged into one part, containing information from all input frames
+                # I_1_merged has depth num_blocks x N, when takeing num_blocks frames as input
+                I_1_merged=tf.concat(I_1,axis=-1)
+                # Undergo 1x1 convolution
+                # Filter number set to distillate the deep feature map into a concise one, I_2
+                I_2=conv10[i](I_1_merged)
+                # I_2 concatenated to all the previous feature maps, become I_3
+                # Feature maps contain: self-independent spatial information and fully maximised temporal information
+                # I_3 denotes merged feature maps
+                I_3=[tf.concat([I_2,f],-1) for f in I_1]
+                # Depth of feature maps is 2 x N and 3x3 conv layers are adopted to extract spatio-temporal information
+                I_3_convolved=[conv2[i](f) for f in I_3]
+                # I_0 is added to represent residual learning - output and input are required to have the same size
+                PFRB_output=[tf.add(inp0[j],I_3_convolved[j]) for j in range(f1)]
 
-            merge=tf.concat(inp0,axis=-1)
+            # Merge and magnify information from PFRB channels to obtain a single HR image
+            # Sub-pixel magnification layer
+            merge=tf.concat(PFRB_output,axis=-1)
             merge=convmerge1(merge)
-
+            # Reattanges blocks of depth into spatial data; height and width taken out of the depth dimension
             large1=tf.depth_to_space(merge,2)
+            # Bicubically magnificated to obtain HR estimate
             out1=convmerge2(large1)
             out=tf.depth_to_space(out1,2)
 
+        # HR estimate
         return tf.stack([out+bic], axis=1,name='out')#out
 
     def build(self):
@@ -117,7 +153,7 @@ class PFNL(VSR):
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
-        # epsilon is empirically set to 10e-3
+        # epsilon is empirically set to 10e-3 (error in code?)
         loss=tf.reduce_mean(tf.sqrt((SR_train-H)**2+1e-6))
         # Evaluate mean squared error
         eval_mse=tf.reduce_mean((SR_eval-H) ** 2, axis=[2,3,4])
@@ -144,6 +180,7 @@ class PFNL(VSR):
         filenames=open(self.eval_dir, 'rt').read().splitlines()#sorted(glob.glob(join(self.eval_dir,'*')))
         print("Filenames: {}".format(filenames))
         gt_list=[sorted(glob.glob(join(f,'truth','*.png'))) for f in filenames]
+        print("gt_list: ".format(gt_list))
 
         center=15
         batch_gt = []
@@ -303,12 +340,14 @@ class PFNL(VSR):
                 img=sr[j][0]*255.
                 img=np.clip(img,0,255)
                 img=np.round(img,0).astype(np.uint8)
-                cv2_imsave(join(save_path, '{:0>4}.png'.format(i*num_once+j)),img)
+                # Name of saved file. This should match the 'truth' format for easier analysis in future.
+                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i*num_once+j + 1)), img)
         all_time=np.array(all_time)
         if max_frame>0:
             all_time=np.array(all_time)
             print('spent {} s in total and {} s in average'.format(np.sum(all_time),np.mean(all_time[1:])))
 
+    # This function is identical to test_video_truth, except it uses the blurred images
     def test_video_lr(self, path, name='result', reuse=False, part=50):
         save_path=join(path,name)
         automkdir(save_path)
@@ -366,6 +405,7 @@ class PFNL(VSR):
         if max_frame>0:
             all_time=np.array(all_time)
             print('spent {} s in total and {} s in average'.format(np.sum(all_time),np.mean(all_time[1:])))
+
     # Default path written by authors
     def testvideos(self, path='/dev/f/data/video/test2/udm10', start=0, name='pfnl'):
         kind=sorted(glob.glob(join(path,'*')))
@@ -374,13 +414,14 @@ class PFNL(VSR):
         reuse=False
         for k in kind:
             idx=kind.index(k)
+            print("idx: {}".format(idx))
             if idx>=start:
                 if idx>start:
                     reuse=True
                 datapath=join(path,k)
                 print("Datapath: {}".format(datapath))
                 #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
-                self.test_video_truth(k, name='Result', reuse=False, part=1000)
+                self.test_video_truth(k, name='result_pfnl', reuse=False, part=1000)
 
 
 if __name__=='__main__':

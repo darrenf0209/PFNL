@@ -113,34 +113,55 @@ class PFNL(VSR):
             # inter-frame and temporal correlations among multiple LR frames
             for i in range(num_block):
                 # I_1 obtained from the first 3x3 convolution. It denotes feature maps extracted
-                I_1=[conv1[i](f) for f in inp0]
+                inp1 = [conv1[i](f) for f in inp0]
+                #I_1=[conv1[i](f) for f in inp0]
+                #print("**I_1: {}".format(I_1))
+
                 # All I_1 feature maps are concatenated and marged into one part, containing information from all input frames
                 # I_1_merged has depth num_blocks x N, when takeing num_blocks frames as input
-                I_1_merged=tf.concat(I_1,axis=-1)
+                base = tf.concat(inp1, axis=-1)
+                #I_1_merged=tf.concat(I_1,axis=-1)
+                #print("**I_1_merged: {}".format(I_1_merged))
+
                 # Undergo 1x1 convolution
                 # Filter number set to distillate the deep feature map into a concise one, I_2
-                I_2=conv10[i](I_1_merged)
+                base = conv10[i](base)
+                #I_2=conv10[i](I_1_merged)
+                #print("**I_2: {}".format(I_2))
+
                 # I_2 concatenated to all the previous feature maps, become I_3
                 # Feature maps contain: self-independent spatial information and fully maximised temporal information
                 # I_3 denotes merged feature maps
-                I_3=[tf.concat([I_2,f],-1) for f in I_1]
+                inp2 = [tf.concat([base, f], -1) for f in inp1]
+                #I_3=[tf.concat([I_2,f],-1) for f in I_1]
+                #print("**I_3: {}".format(I_3))
+
                 # Depth of feature maps is 2 x N and 3x3 conv layers are adopted to extract spatio-temporal information
-                I_3_convolved=[conv2[i](f) for f in I_3]
+                inp2 = [conv2[i](f) for f in inp2]
+                #I_3_convolved=[conv2[i](f) for f in I_3]
+                #print("**I_3_convolved: {}".format(I_3_convolved))
+
                 # I_0 is added to represent residual learning - output and input are required to have the same size
-                PFRB_output=[tf.add(inp0[j],I_3_convolved[j]) for j in range(f1)]
+                inp0 = [tf.add(inp0[j], inp2[j]) for j in range(f1)]
+                #PFRB_output=[tf.add(inp0[j],I_3_convolved[j]) for j in range(f1)]
+                #print("**PFRB_output: {}".format(PFRB_output))
 
             # Merge and magnify information from PFRB channels to obtain a single HR image
             # Sub-pixel magnification layer
-            merge=tf.concat(PFRB_output,axis=-1)
+            merge = tf.concat(inp0, axis=-1)
+            #merge=tf.concat(PFRB_output,axis=-1)
             merge=convmerge1(merge)
             # Reattanges blocks of depth into spatial data; height and width taken out of the depth dimension
             large1=tf.depth_to_space(merge,2)
-            # Bicubically magnificated to obtain HR estimate
+            # Bicubically magnified to obtain HR estimate
             out1=convmerge2(large1)
             out=tf.depth_to_space(out1,2)
+            print("**HR estimate: {}".format(out))
+            tf.keras.backend.print_tensor(out)
 
         # HR estimate
         return tf.stack([out+bic], axis=1,name='out')#out
+
 
     def build(self):
         in_h,in_w=self.eval_in_size
@@ -421,8 +442,9 @@ class PFNL(VSR):
                 datapath=join(path,k)
                 print("Datapath: {}".format(datapath))
                 #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
-                self.test_video_truth(k, name='result_pfnl', reuse=False, part=1000)
-
+                # Line below is original and used to work.
+                #self.test_video_truth(k, name='result_pfnl', reuse=False, part=1000)
+                self.test_video_truth(k, name='result_pfnl', reuse=False, part=50)
 
 if __name__=='__main__':
     model=PFNL()

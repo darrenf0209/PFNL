@@ -1,5 +1,5 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
 ########################################################
 # 0 = all messages are logged (default behavior)
 # 1 = INFO messages are not printed
@@ -33,7 +33,7 @@ class PFNL(VSR):
         # Take seven 32x32 LR frames as input to compute calculation cost
         # LR frames under 4 x SR
         self.num_frames=7
-        self.scale=4
+        self.scale=2
         self.in_size=32
         self.gt_size=self.in_size*self.scale
         self.eval_in_size=[128,240]
@@ -82,8 +82,8 @@ class PFNL(VSR):
             conv10=[Conv2D(mf, 1, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv10_{}'.format(i)) for i in range(num_block)]
             conv2=[Conv2D(mf, dk, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv2_{}'.format(i)) for i in range(num_block)]
             # Used for the 3x3 convolutional layers, as per the architecture
-            convmerge1=Conv2D(48, 3, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='convmerge1')
-            convmerge2=Conv2D(12, 3, strides=ds, padding='same', activation=None, kernel_initializer=ki, name='convmerge2')
+            convmerge1=Conv2D(12, 3, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='convmerge1')
+            # convmerge2=Conv2D(12, 3, strides=ds, padding='same', activation=None, kernel_initializer=ki, name='convmerge2')
 
             # Creating I_0
             inp0=[x[:,i,:,:,:] for i in range(f1)]
@@ -114,36 +114,29 @@ class PFNL(VSR):
             for i in range(num_block):
                 # I_1 obtained from the first 3x3 convolution. It denotes feature maps extracted
                 inp1 = [conv1[i](f) for f in inp0]
-                #I_1=[conv1[i](f) for f in inp0]
                 #print("**I_1: {}".format(I_1))
 
                 # All I_1 feature maps are concatenated and marged into one part, containing information from all input frames
                 # I_1_merged has depth num_blocks x N, when takeing num_blocks frames as input
                 base = tf.concat(inp1, axis=-1)
-                #I_1_merged=tf.concat(I_1,axis=-1)
                 #print("**I_1_merged: {}".format(I_1_merged))
 
                 # Undergo 1x1 convolution
                 # Filter number set to distillate the deep feature map into a concise one, I_2
                 base = conv10[i](base)
-                #I_2=conv10[i](I_1_merged)
                 #print("**I_2: {}".format(I_2))
 
-                # I_2 concatenated to all the previous feature maps, become I_3
                 # Feature maps contain: self-independent spatial information and fully maximised temporal information
                 # I_3 denotes merged feature maps
                 inp2 = [tf.concat([base, f], -1) for f in inp1]
-                #I_3=[tf.concat([I_2,f],-1) for f in I_1]
                 #print("**I_3: {}".format(I_3))
 
                 # Depth of feature maps is 2 x N and 3x3 conv layers are adopted to extract spatio-temporal information
                 inp2 = [conv2[i](f) for f in inp2]
-                #I_3_convolved=[conv2[i](f) for f in I_3]
                 #print("**I_3_convolved: {}".format(I_3_convolved))
 
                 # I_0 is added to represent residual learning - output and input are required to have the same size
                 inp0 = [tf.add(inp0[j], inp2[j]) for j in range(f1)]
-                #PFRB_output=[tf.add(inp0[j],I_3_convolved[j]) for j in range(f1)]
                 #print("**PFRB_output: {}".format(PFRB_output))
 
             # Merge and magnify information from PFRB channels to obtain a single HR image
@@ -151,13 +144,12 @@ class PFNL(VSR):
             merge = tf.concat(inp0, axis=-1)
             #merge=tf.concat(PFRB_output,axis=-1)
             merge=convmerge1(merge)
-            # Reattanges blocks of depth into spatial data; height and width taken out of the depth dimension
-            large1=tf.depth_to_space(merge,2)
+            # Rearranges blocks of depth into spatial data; height and width taken out of the depth dimension
+            # large1=tf.depth_to_space(merge,2)
             # Bicubically magnified to obtain HR estimate
-            out1=convmerge2(large1)
-            out=tf.depth_to_space(out1,2)
+            #out1=convmerge2(large1)
+            out=tf.depth_to_space(merge,2)
             print("**HR estimate: {}".format(out))
-            tf.keras.backend.print_tensor(out)
 
         # HR estimate
         return tf.stack([out+bic], axis=1,name='out')#out
@@ -330,6 +322,7 @@ class PFNL(VSR):
             self.img_lr=DownSample_4D(self.img_hr, BLUR, scale=self.scale)
             config = tf.ConfigProto()
             config.gpu_options.allow_growth = True
+            #config.gpu_options.per_process_gpu_memory_fraction = 0.2
             sess = tf.Session(config=config)
             #sess=tf.Session()
             self.sess=sess

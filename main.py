@@ -19,9 +19,9 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 if __name__=='__main__':
     model = PFNL()
     print('Model loaded!')
-    model.train()
-    print('Training finished')
+    #model.train()
+    #print('Training finished')
     # model.eval()
     # model.testvideos('test\\udm10\\')
-    #model.testvideos('test\\vid4\\')
+    model.testvideos('test\\vid4\\')
     # print('Finished')

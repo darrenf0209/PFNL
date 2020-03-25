@@ -37,7 +37,7 @@ class PFNL(VSR):
         self.in_size=32
         self.gt_size=self.in_size*self.scale
         self.eval_in_size=[128,240]
-        self.batch_size=16
+        self.batch_size=4
         self.eval_basz=4
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate=1e-3
@@ -49,6 +49,7 @@ class PFNL(VSR):
         self.eval_dir='./data/filelist_val.txt'
         self.save_dir='./checkpoint/pfnl'
         self.log_dir='./pfnl.txt'
+        self.training_log_dir='./training_log.txt'
 
     def forward(self, x):
         # Filters: dimensionality of output space
@@ -230,8 +231,9 @@ class PFNL(VSR):
             f.write('{'+'"Iter": {} , "PSNR": {}, "MSE": {}'.format(sess.run(self.global_step), psnr_avg.tolist(), mse_avg.tolist())+'}\n')
 
     def train(self):
+        print("Training begin")
         LR, HR= self.single_input_producer()
-        print("LR: {}, HR: {}".format(LR, HR))
+        print("LR: {}\n HR: {}".format(LR, HR))
         global_step=tf.Variable(initial_value=0, trainable=False)
         print("Global step: {}".format(global_step))
         self.global_step=global_step
@@ -265,18 +267,21 @@ class PFNL(VSR):
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         cost_time=0
+        time_str = ''
         # Begin timing the training
         start_time=time.time()
         gs=sess.run(global_step)
         for step in range(sess.run(global_step), self.max_step):
             if step>gs and step%20==0:
+                #time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v)
+                #print(time_str)
                 print(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v))
 
             if step % 500 == 0:
                 if step>gs:
                     self.save(sess, self.save_dir, step)
-                cost_time=time.time()-start_time
-                print('cost {}s.'.format(cost_time))
+                training_cost_time=time.time()-start_time
+                print('cost {}s.'.format(training_cost_time))
                 self.eval()
                 cost_time=time.time()-start_time
                 start_time=time.time()
@@ -284,7 +289,12 @@ class PFNL(VSR):
 
             lr1,hr=sess.run([LR,HR])
             _,loss_v=sess.run([training_op,self.loss],feed_dict={self.L:lr1, self.H:hr})
-
+            if step % 500 == 0:
+                # write to log file
+                with open(self.training_log_dir, 'a+') as f:
+                    f.write('{' +'Time:{}, Iter:{}, Loss:{},  Training Time:{}s'
+                            .format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()), sess.run(self.global_step),
+                                    loss_v, training_cost_time) + '}\n')
             if step>500 and loss_v>10:
                 print('Model collapsed with loss={}'.format(loss_v))
                 break
@@ -294,6 +304,7 @@ class PFNL(VSR):
     def test_video_truth(self, path, name='result', reuse=True, part=50):
         save_path=join(path,name)
         print("Save Path: {}".format(save_path))
+        # Create the save path directory if it does not exist
         automkdir(save_path)
         inp_path=join(path,'truth')
         print("Input Path: {}".format(inp_path))
@@ -361,6 +372,7 @@ class PFNL(VSR):
     # This function is identical to test_video_truth, except it uses the blurred images
     def test_video_lr(self, path, name='result', reuse=False, part=50):
         save_path=join(path,name)
+        # Create the save path directory if it does not exist
         automkdir(save_path)
         inp_path=join(path,'blur{}'.format(self.scale))
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
@@ -434,7 +446,7 @@ class PFNL(VSR):
                 # The datapath is not needed as the files are located at variable k
                 #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
                 # SR for truth
-                self.test_video_truth(k, name='pfnl_scale_2', reuse=False, part=1000)
+                self.test_video_truth(k, name='trial_del', reuse=False, part=1000)
                 # SR for blurred and downscaled images
                 #self.test_video_lr(k, name='result_pfnl_blur', reuse=False, part=1000)
 

@@ -1,8 +1,9 @@
-''' Created by Darren Flaks, last modified on 24/3/2020
+''' Created by Darren Flaks, created on 24/3/2020
     This file deals with the pre-processing of images before they are fed for training or testing '''
 
 import os
 import shutil
+from utils import automkdir
 import image_slicer
 
 vid4 = ['calendar', 'city', 'foliage', 'walk']
@@ -20,8 +21,7 @@ for i in vid4:
     LR_names = os.listdir(LR_path)
 
     # Create the directory to save files if it does not exist
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
+    automkdir(save_path)
 
     # Counter of each file in HR image folder
     j = 0

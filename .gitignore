@@ -10,13 +10,7 @@ data/val/*
 # =============================================== #
 # Ignoring Checkpoint pre-trained models          #
 # =============================================== #
-/checkpoint/drvsr
-/checkpoint/duf_52
-/checkpoint/frvsr
-/checkpoint/ltdvsr
-/checkpoint/mcresnet
-/checkpoint/pfnl
-/checkpoint/vespcn
+/checkpoint/*
 
 # =============================================== #
 # Ignoring workspaces and cache                   #
@@ -24,10 +18,10 @@ data/val/*
 .idea/*
 __pycachee__/*
 /model/__pycache__/*
+*.pyc
 
 # =============================================== #
 # Ignoring logging files                          #
 # =============================================== #
 *.txt
-*.pyc
-model/__pycache__/pfnl.cpython-37.pyc
+

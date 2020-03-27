@@ -30,3 +30,4 @@ __pycachee__/*
 # =============================================== #
 pfnl.txt
 *.pyc
+model/__pycache__/pfnl.cpython-37.pyc

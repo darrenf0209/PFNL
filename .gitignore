@@ -28,6 +28,6 @@ __pycachee__/*
 # =============================================== #
 # Ignoring logging files                          #
 # =============================================== #
-pfnl.txt
+*.txt
 *.pyc
 model/__pycache__/pfnl.cpython-37.pyc

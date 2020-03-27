@@ -40,9 +40,11 @@ class PFNL(VSR):
         self.batch_size=4
         self.eval_basz=4
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
-        self.learning_rate=1e-3
+        # Originally 1e-3
+        self.learning_rate=0.6e-3
         self.end_lr=1e-4
         self.reload=True
+        # original value 1.5e5+1
         self.max_step=int(1.5e5+1)
         self.decay_step=1.2e5
         self.train_dir='./data/filelist_train.txt'

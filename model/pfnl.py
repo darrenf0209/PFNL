@@ -1,5 +1,5 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ########################################################
 # 0 = all messages are logged (default behavior)
 # 1 = INFO messages are not printed
@@ -32,7 +32,7 @@ class PFNL(VSR):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Take seven 32x32 LR frames as input to compute calculation cost
         # LR frames under 4 x SR
-        self.num_frames=7
+        self.num_frames=5
         self.scale=4
         self.in_size=32
         self.gt_size=self.in_size*self.scale
@@ -82,7 +82,7 @@ class PFNL(VSR):
             conv10=[Conv2D(mf, 1, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv10_{}'.format(i)) for i in range(num_block)]
             conv2=[Conv2D(mf, dk, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv2_{}'.format(i)) for i in range(num_block)]
             # Used for the 3x3 convolutional layers, as per the architecture
-            convmerge1=Conv2D(12, 3, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='convmerge1')
+            convmerge1=Conv2D(48, 3, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='convmerge1')
             convmerge2=Conv2D(12, 3, strides=ds, padding='same', activation=None, kernel_initializer=ki, name='convmerge2')
 
             # Creating I_0
@@ -295,7 +295,7 @@ class PFNL(VSR):
                 # write to log file
                 with open(self.training_log_dir, 'a+') as f:
                     f.write('{' +'Time:{}, Iter:{}, Loss:{},  Training Time:{}s'
-                            .format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()), sess.run(self.global_step),
+                            .format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()), sess.run(self.global_step)-1,
                                     loss_v, training_cost_time) + '}\n')
             if step>500 and loss_v>10:
                 print('Model collapsed with loss={}'.format(loss_v))

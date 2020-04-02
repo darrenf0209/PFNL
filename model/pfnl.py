@@ -26,13 +26,15 @@ import tensorflow.compat.v1 as tf
 '''This is the official code of PFNL (Progressive Fusion Video Super-Resolution Network via Exploiting Non-Local Spatio-Temporal Correlations).
 The code is mainly based on https://github.com/psychopa4/MMCNN and https://github.com/jiangsutx/SPMC_VideoSR.
 '''
+NAME = 'LR_3'
+
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Take seven 32x32 LR frames as input to compute calculation cost
         # LR frames under 4 x SR
-        self.num_frames=5
+        self.num_frames=3
         self.scale=4
         self.in_size=32
         self.gt_size=self.in_size*self.scale
@@ -49,9 +51,9 @@ class PFNL(VSR):
         self.decay_step=1.2e5
         self.train_dir='./data/filelist_train.txt'
         self.eval_dir='./data/filelist_val.txt'
-        self.save_dir='./checkpoint/pfnl'
-        self.log_dir='./pfnl.txt'
-        self.training_log_dir='./training_log.txt'
+        self.save_dir='./checkpoint/pfnl_{}'.format(NAME)
+        self.log_dir='./logs/pfnl_{}.txt'.format(NAME)
+        self.training_log_dir='./logs/training_log_{}.txt'.format(NAME)
 
     def forward(self, x):
         # Filters: dimensionality of output space
@@ -448,7 +450,7 @@ class PFNL(VSR):
                 # The datapath is not needed as the files are located at variable k
                 #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
                 # SR for truth
-                self.test_video_truth(k, name='trial_del', reuse=False, part=1000)
+                self.test_video_truth(k, name='trial_del_{}'.format(int(time.time())), reuse=False, part=1000)
                 # SR for blurred and downscaled images
                 #self.test_video_lr(k, name='result_pfnl_blur', reuse=False, part=1000)
 

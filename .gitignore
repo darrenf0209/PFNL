@@ -17,6 +17,8 @@ data/val/*
 /checkpoint/mcresnet
 /checkpoint/pfnl
 /checkpoint/vespcn
+/checkpoint/*
+/logs/*
 
 # =============================================== #
 # Ignoring workspaces and cache                   #
@@ -30,3 +32,4 @@ __pycachee__/*
 # =============================================== #
 pfnl.txt
 *.pyc
+training_log.txt

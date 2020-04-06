@@ -367,10 +367,8 @@ class PFNL(VSR):
         all_time=[]
         for i in trange(part):
             st_time=time.time()
-            print_SR_test = tf.print(SR_test, [SR_test], "SR_TEST: ")
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)
-            sr=self.sess.run(print_SR_test,feed_dict={L_test : lr_list[i*num_once:(i+1)*num_once]}, options=run_options)
-            print("SR_Test: {}".format(sess.run(SR_test)))
+            sr=self.sess.run(SR_test,feed_dict={L_test : lr_list[i*num_once:(i+1)*num_once]}, options=run_options)
             all_time.append(time.time()-st_time)
             for j in range(sr.shape[0]):
                 img=sr[j][0]*255.
@@ -388,7 +386,8 @@ class PFNL(VSR):
         save_path=join(path,name)
         # Create the save path directory if it does not exist
         automkdir(save_path)
-        inp_path=join(path,'blur{}'.format(self.scale))
+        inp_path=join(path,'blur4')
+        # inp_path=join(path,'blur{}'.format(self.scale)) original
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
         max_frame=len(imgs)
         lrs=np.array([cv2_imread(i) for i in imgs])/255.
@@ -463,7 +462,7 @@ class PFNL(VSR):
                 # SR for truth
                 self.test_video_truth(k, name='trial_del_{}'.format(int(time.time())), reuse=False, part=1000)
                 # SR for blurred and downscaled images
-                #self.test_video_lr(k, name='result_pfnl_blur', reuse=False, part=1000)
+                # self.test_video_lr(k, name='result_pfnl_blur', reuse=False, part=1000)
 
 if __name__=='__main__':
     model=PFNL()

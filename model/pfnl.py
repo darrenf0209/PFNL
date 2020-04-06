@@ -7,6 +7,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
 # 3 = INFO, WARNING, and ERROR messages are not printed
 ########################################################
 import tensorflow as tf
+import sys
 from tensorflow.python.ops import control_flow_ops
 from os.path import join,exists
 import glob
@@ -17,27 +18,30 @@ import scipy
 import time
 import os
 from tensorflow.python.layers.convolutional import Conv2D,conv2d
+# debugging OOM
+from tensorflow.core.protobuf import config_pb2
 from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, get_num_params, cv2_imread, cv2_imsave, automkdir
 from tqdm import tqdm,trange
 from model.base_model import VSR
 # TensorFlow back-compatability
 import tensorflow.compat.v1 as tf
 
-'''This is the official code of PFNL (Progressive Fusion Video Super-Resolution Network via Exploiting Non-Local Spatio-Temporal Correlations).
-The code is mainly based on https://github.com/psychopa4/MMCNN and https://github.com/jiangsutx/SPMC_VideoSR.
+''' 
+This is a modified version of PFNL by Darren Flaks
 '''
+NAME = 'SR_2'
+
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Take seven 32x32 LR frames as input to compute calculation cost
-        # LR frames under 4 x SR
         self.num_frames=7
         self.scale=2
         self.in_size=32
         self.gt_size=self.in_size*self.scale
         self.eval_in_size=[128,240]
-        self.batch_size=16
+        self.batch_size=4
         self.eval_basz=4
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate=1e-3
@@ -46,9 +50,9 @@ class PFNL(VSR):
         self.max_step=int(1.5e5+1)
         self.decay_step=1.2e5
         self.train_dir='./data/filelist_train.txt'
-        self.eval_dir='./data/filelist_val.txt'
-        self.save_dir='./checkpoint/pfnl'
-        self.log_dir='./pfnl.txt'
+        self.save_dir='./checkpoint/pfnl_{}'.format(NAME)
+        self.log_dir='./logs/pfnl_{}.txt'.format(NAME)
+        self.training_log_dir='./logs/training_log_{}.txt'.format(NAME)
 
     def forward(self, x):
         # Build a network with 11 convolutional layers, not including merge and magnification module in the tail
@@ -78,7 +82,6 @@ class PFNL(VSR):
             # Preparing the convolutional layers to be used in the PFRB
             conv1=[Conv2D(mf, dk, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv1_{}'.format(i)) for i in range(num_block)]
             # 1x1 conv is used to refine the deep feature map, to avoid too many parameters
-
             conv10=[Conv2D(mf, 1, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv10_{}'.format(i)) for i in range(num_block)]
             conv2=[Conv2D(mf, dk, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv2_{}'.format(i)) for i in range(num_block)]
             # Used for the 3x3 convolutional layers, as per the architecture
@@ -87,26 +90,29 @@ class PFNL(VSR):
 
             # Creating I_0
             inp0=[x[:,i,:,:,:] for i in range(f1)]
-            print("***Inp0***")
-            print(inp0)
+            print("Creating I_0:{}".format(inp0))
             # Joining to the end
             inp0=tf.concat(inp0,axis=-1)
-            print(inp0)
+            print("Concatenating at end:{}".format(inp0))
             # Rearrange blocks of spatial data into depth; height and width dimensions are moved to depth
             inp1=tf.space_to_depth(inp0,2)
-            print(inp1)
+            print("Re-arrange spatial data into depth inp1:{}".format(inp1))
             # Non Local Resblock
             inp1=NonLocalBlock(inp1,int(c)*self.num_frames*4,sub_sample=1,nltype=1,scope='nlblock_{}'.format(0))
-            print(inp1)
+            print("NLRB Output inp1:{}".format(inp1))
             inp1=tf.depth_to_space(inp1,2)
-            print(inp1)
+            print("Re-arrange depth into spatial data inp1:{}".format(inp1))
             # Concatenation
             inp0+=inp1
+            print("inp0+=inp1: {}".format(inp0))
             inp0=tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
+            print("inp0 split: {}".format(inp0))
             # 5x5 convolutional step, before entering the PFRB
             inp0=[conv0(f) for f in inp0]
+            print("inp0 conv0: {}".format(inp0))
             # Only resizing the shape
             bic=tf.image.resize_images(x[:,self.num_frames//2,:,:,:],[w*self.scale,h*self.scale],method=2)
+            print("bic: {}".format(bic))
 
             # Structure and assembly of PFRB
             # After the 5x5 conv layer, add in the num_blocks of PFRBs to make full extraction of both
@@ -114,42 +120,45 @@ class PFNL(VSR):
             for i in range(num_block):
                 # I_1 obtained from the first 3x3 convolution. It denotes feature maps extracted
                 inp1 = [conv1[i](f) for f in inp0]
-                #print("**I_1: {}".format(I_1))
+                print("I_1: {}".format(inp1))
 
                 # All I_1 feature maps are concatenated and marged into one part, containing information from all input frames
                 # I_1_merged has depth num_blocks x N, when takeing num_blocks frames as input
                 base = tf.concat(inp1, axis=-1)
-                #print("**I_1_merged: {}".format(I_1_merged))
+                print("I_1_merged: {}".format(base))
 
                 # Undergo 1x1 convolution
                 # Filter number set to distillate the deep feature map into a concise one, I_2
                 base = conv10[i](base)
-                #print("**I_2: {}".format(I_2))
+                print("I_2: {}".format(base))
 
                 # Feature maps contain: self-independent spatial information and fully maximised temporal information
                 # I_3 denotes merged feature maps
                 inp2 = [tf.concat([base, f], -1) for f in inp1]
-                #print("**I_3: {}".format(I_3))
+                print("I_3: {}".format(inp2))
 
                 # Depth of feature maps is 2 x N and 3x3 conv layers are adopted to extract spatio-temporal information
                 inp2 = [conv2[i](f) for f in inp2]
-                #print("**I_3_convolved: {}".format(I_3_convolved))
+                print("I_3_convolved: {}".format(inp2))
 
                 # I_0 is added to represent residual learning - output and input are required to have the same size
                 inp0 = [tf.add(inp0[j], inp2[j]) for j in range(f1)]
-                #print("**PFRB_output: {}".format(PFRB_output))
+                print("PFRB_output: {}".format(inp0))
 
             # Merge and magnify information from PFRB channels to obtain a single HR image
             # Sub-pixel magnification layer
             merge = tf.concat(inp0, axis=-1)
-            #merge=tf.concat(PFRB_output,axis=-1)
+            print('Sub-pixel magnification')
+            print('merge tf.concat: {}'.format(merge))
             merge=convmerge1(merge)
+            print('convmerge: {}'.format(merge))
+            # print_merge = tf.print(merge, [merge], "Merge: ")
             # Rearranges blocks of depth into spatial data; height and width taken out of the depth dimension
             # large1=tf.depth_to_space(merge,2)
             # Bicubically magnified to obtain HR estimate
             #out1=convmerge2(large1)
             out=tf.depth_to_space(merge,2)
-            print("**HR estimate: {}".format(out))
+            print('out: {}'.format(out))
 
         # HR estimate
         return tf.stack([out+bic], axis=1,name='out')#out
@@ -329,8 +338,8 @@ class PFNL(VSR):
             sess.run(tf.global_variables_initializer())
             self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
             self.load(sess, self.save_dir)
-
-        lrs=self.sess.run(self.img_lr,feed_dict={self.img_hr:imgs})
+        run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
+        lrs=self.sess.run(self.img_lr,feed_dict={self.img_hr:imgs}, options=run_options)
 
         lr_list=[]
         max_frame=lrs.shape[0]
@@ -348,7 +357,10 @@ class PFNL(VSR):
         all_time=[]
         for i in trange(part):
             st_time=time.time()
-            sr=self.sess.run(SR_test,feed_dict={L_test : lr_list[i*num_once:(i+1)*num_once]})
+            print_SR_test = tf.print(SR_test, [SR_test], "SR_TEST: ")
+            run_options = tf.RunOptions(report_tensor_allocations_upon_oom = True)
+            sr=self.sess.run(print_SR_test,feed_dict={L_test : lr_list[i*num_once:(i+1)*num_once]}, options=run_options)
+            print("SR_Test: {}".format(sess.run(SR_test)))
             all_time.append(time.time()-st_time)
             for j in range(sr.shape[0]):
                 img=sr[j][0]*255.
@@ -407,7 +419,8 @@ class PFNL(VSR):
         all_time=[]
         for i in trange(part):
             st_time=time.time()
-            sr=self.sess.run(SR_test,feed_dict={L_test : lr_list[i*num_once:(i+1)*num_once]})
+            run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
+            sr=self.sess.run(SR_test,feed_dict={L_test : lr_list[i*num_once:(i+1)*num_once]}, options=run_options)
             all_time.append(time.time()-st_time)
             for j in range(sr.shape[0]):
                 img=sr[j][0]*255.

@@ -10,7 +10,15 @@ data/val/*
 # =============================================== #
 # Ignoring Checkpoint pre-trained models          #
 # =============================================== #
+/checkpoint/drvsr
+/checkpoint/duf_52
+/checkpoint/frvsr
+/checkpoint/ltdvsr
+/checkpoint/mcresnet
+/checkpoint/pfnl
+/checkpoint/vespcn
 /checkpoint/*
+/logs/*
 
 # =============================================== #
 # Ignoring workspaces and cache                   #
@@ -23,5 +31,6 @@ __pycachee__/*
 # =============================================== #
 # Ignoring logging files                          #
 # =============================================== #
-*.txt
-
+pfnl.txt
+*.pyc
+training_log.txt

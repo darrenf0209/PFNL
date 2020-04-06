@@ -40,7 +40,8 @@ def resize_imgs_truth(path, scale=0.5, name='resize', img_format='png'):
             filename = os.listdir(img_path)[img]
             cv2.imwrite(join(save_path, filename), modified)
             # print(filename)
-        return print('Successfully resized {} images by a scale of {} at {}'.format(len(imgs), scale, save_path))
+        print('Successfully resized {} images by a scale of {} at {}'.format(len(imgs), scale, save_path))
+    return print('Resize images concluded')
 
 def NonLocalBlock(input_x, out_channels, sub_sample=1, nltype=0 ,is_bn=False, scope='NonLocalBlock'):
     '''https://github.com/nnUyi/Non-Local_Nets-Tensorflow

@@ -12,10 +12,35 @@ from tensorflow.python.layers.convolutional import Conv2D,conv2d
 from tensorflow.python.layers.pooling import AveragePooling2D,average_pooling2d
 import functools, inspect
 import random
-# NEW
 import tensorflow.compat.v1 as tf
+import shutil
+import image_slicer
+from os.path import join
+import glob
+import cv2
 
-
+''' This Function is written by Darren Flaks. Last modified 6/4/20
+This function accepts an input path, scale, name and image format as parameters
+It find all of the folders in the input path and for each folder, it will resize each of the
+ground-truth images by the scale factor and save the files according to the name supplied'''
+def resize_imgs_truth(path, scale=0.5, name='resize', img_format='png'):
+    folders = sorted(glob.glob(join(path, '*')))
+    # print("Folder list: {}".format(folders))
+    for folder in folders:
+        save_path = join(folder, name)
+        automkdir(save_path)
+        # print("Saved directory is: {}".format(save_path))
+        img_path = join(folder, 'truth')
+        # print("Input path: {}".format(img_path))
+        imgs = sorted(glob.glob(join(img_path,'*.{}'.format(img_format))))
+        # print(os.listdir(img_path))
+        for img in range(len(imgs)):
+            original = cv2.imread(imgs[img], cv2.IMREAD_UNCHANGED)
+            modified = cv2.resize(original, (0, 0), fx=scale, fy=scale)
+            filename = os.listdir(img_path)[img]
+            cv2.imwrite(join(save_path, filename), modified)
+            # print(filename)
+        return print('Successfully resized {} images by a scale of {} at {}'.format(len(imgs), scale, save_path))
 
 def NonLocalBlock(input_x, out_channels, sub_sample=1, nltype=0 ,is_bn=False, scope='NonLocalBlock'):
     '''https://github.com/nnUyi/Non-Local_Nets-Tensorflow

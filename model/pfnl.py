@@ -29,14 +29,14 @@ import tensorflow.compat.v1 as tf
 ''' 
 This is a modified version of PFNL by Darren Flaks
 '''
-NAME = 'SR_2'
+NAME = 'LR_3'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Take seven 32x32 LR frames as input to compute calculation cost
-        self.num_frames=7
+        self.num_frames=3
         self.scale=2
         self.in_size=32
         self.gt_size=self.in_size*self.scale
@@ -45,13 +45,14 @@ class PFNL(VSR):
         self.eval_basz=4
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         # Originally 1e-3
-        self.learning_rate=0.6e-3
+        self.learning_rate=1e-3
         self.end_lr=1e-4
         self.reload=True
         # original value 1.5e5+1
         self.max_step=int(1.5e5+1)
         self.decay_step=1.2e5
         self.train_dir='./data/filelist_train.txt'
+        self.eval_dir='./data/filelist_val.txt'
         self.save_dir='./checkpoint/pfnl_{}'.format(NAME)
         self.log_dir='./logs/pfnl_{}.txt'.format(NAME)
         self.training_log_dir='./logs/training_log_{}.txt'.format(NAME)
@@ -201,9 +202,7 @@ class PFNL(VSR):
 
         filenames=open(self.eval_dir, 'rt').read().splitlines()#sorted(glob.glob(join(self.eval_dir,'*')))
         print("Filenames: {}".format(filenames))
-        gt_list=[sorted(glob.glob(join(f,'truth','*.png'))) for f in filenames]
-        print("gt_list: ".format(gt_list))
-
+        gt_list=[sorted(glob.glob(join(f,'truth_downsize_2','*.png'))) for f in filenames]
         center=15
         batch_gt = []
         batch_cnt=0
@@ -317,7 +316,7 @@ class PFNL(VSR):
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
-        inp_path=join(path,'truth')
+        inp_path=join(path,'truth_downsize_2')
         print("Input Path: {}".format(inp_path))
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
         print("Image: {}".format(imgs))

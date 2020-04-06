@@ -77,7 +77,7 @@ class VSR(object):
             gtList_all = []
             for dataPath in pathlist:
                 inList = sorted(glob.glob(os.path.join(dataPath, 'blur{}/*.png'.format(self.scale))))
-                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth/*.png')))
+                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth_downsize_2/*.png')))
                 inList_all.append(inList)
                 gtList_all.append(gtList)
             inList_all = tf.convert_to_tensor(inList_all, dtype=tf.string)
@@ -138,7 +138,7 @@ class VSR(object):
             gtList_all = []
             for dataPath in pathlist:
                 inList = sorted(glob.glob(os.path.join(dataPath, 'blur{}/*.png'.format(self.scale))))
-                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth/*.png')))
+                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth_downsize_2/*.png')))
                 inList_all.append(inList)
                 gtList_all.append(gtList)
             inList_all = tf.convert_to_tensor(inList_all, dtype=tf.string)
@@ -191,7 +191,7 @@ class VSR(object):
         with tf.variable_scope('trainin'):
             gtList_all = []
             for dataPath in pathlist:
-                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth/*.png')))
+                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth_downsize_2/*.png')))
                 gtList_all.append(gtList)
             gtList_all = tf.convert_to_tensor(gtList_all, dtype=tf.string)
 

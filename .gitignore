@@ -1,36 +1,20 @@
-# =============================================== #
-# Ignoring files used for training and evaluating #
-# =============================================== #
+# Ignoring files used for training and evaluating 
 data/train/*
 data/val/*
 /test/udm10/*
 /test/vid4/*
 *.png
 
-# =============================================== #
-# Ignoring Checkpoint pre-trained models          #
-# =============================================== #
-/checkpoint/drvsr
-/checkpoint/duf_52
-/checkpoint/frvsr
-/checkpoint/ltdvsr
-/checkpoint/mcresnet
-/checkpoint/pfnl
-/checkpoint/vespcn
+# Ignoring checkpoints and logs
 /checkpoint/*
 /logs/*
 
-# =============================================== #
-# Ignoring workspaces and cache                   #
-# =============================================== #
+# Ignoring workspaces and cache
 .idea/*
-__pycachee__/*
+__pycachee__
 /model/__pycache__/*
 *.pyc
 
-# =============================================== #
-# Ignoring logging files                          #
-# =============================================== #
+# Misc
 pfnl.txt
-*.pyc
 training_log.txt

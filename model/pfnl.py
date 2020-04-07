@@ -1,5 +1,5 @@
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ########################################################
 # 0 = all messages are logged (default behavior)
 # 1 = INFO messages are not printed
@@ -15,11 +15,10 @@ import random
 import numpy as np
 from PIL import Image
 import scipy
+import json
 import time
 import os
 from tensorflow.python.layers.convolutional import Conv2D,conv2d
-# debugging OOM
-from tensorflow.core.protobuf import config_pb2
 from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, get_num_params, cv2_imread, cv2_imsave, automkdir
 from tqdm import tqdm,trange
 from model.base_model import VSR
@@ -27,16 +26,16 @@ from model.base_model import VSR
 import tensorflow.compat.v1 as tf
 
 ''' 
-This is a modified version of PFNL by Darren Flaks
+This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_3'
+NAME = 'TRIAL_ONLY'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Take seven 32x32 LR frames as input to compute calculation cost
-        self.num_frames=3
+        self.num_frames=1
         self.scale=2
         self.in_size=32
         self.gt_size=self.in_size*self.scale
@@ -44,18 +43,15 @@ class PFNL(VSR):
         self.batch_size=4
         self.eval_basz=4
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
-        # Originally 1e-3
         self.learning_rate=1e-3
         self.end_lr=1e-4
         self.reload=True
-        # original value 1.5e5+1
         self.max_step=int(1.5e5+1)
         self.decay_step=1.2e5
         self.train_dir='./data/filelist_train.txt'
         self.eval_dir='./data/filelist_val.txt'
         self.save_dir='./checkpoint/pfnl_{}'.format(NAME)
         self.log_dir='./logs/pfnl_{}.txt'.format(NAME)
-        self.training_log_dir='./logs/training_log_{}.txt'.format(NAME)
 
     def forward(self, x):
         # Filters: dimensionality of output space
@@ -73,11 +69,10 @@ class PFNL(VSR):
         # h = height
         # c = channels (depth)
         n,f1,w,h,c=x.shape
-        ki = tf.keras.initializers.glorot_normal(seed=None) # Replaces ki=tf.contrib.layers.xavier_initializer()
+        ki = tf.keras.initializers.glorot_normal(seed=None)
         # Stride length
         ds=1
         with tf.variable_scope('nlvsr',reuse=tf.AUTO_REUSE) as scope:
-            # Gathering all the convolutional layers for the CNN
             # First convolutional layer uses a 5x5 kernel for a big receptive field (the rest use a 3x3 kernel)
             conv0=Conv2D(mf, 5, strides=ds, padding='same', activation=activate, kernel_initializer=ki, name='conv0')
             # Preparing the convolutional layers to be used in the PFRB
@@ -115,7 +110,6 @@ class PFNL(VSR):
             bic=tf.image.resize_images(x[:,self.num_frames//2,:,:,:],[w*self.scale,h*self.scale],method=2)
             print("bic: {}".format(bic))
 
-            # Structure and assembly of PFRB
             # After the 5x5 conv layer, add in the num_blocks of PFRBs to make full extraction of both
             # inter-frame and temporal correlations among multiple LR frames
             for i in range(num_block):
@@ -146,24 +140,21 @@ class PFNL(VSR):
                 inp0 = [tf.add(inp0[j], inp2[j]) for j in range(f1)]
                 print("PFRB_output: {}".format(inp0))
 
-            # Merge and magnify information from PFRB channels to obtain a single HR image
-            # Sub-pixel magnification layer
+            # Sub-pixel magnification: Merge and magnify information from PFRB channels to obtain a single HR image
             merge = tf.concat(inp0, axis=-1)
             print('Sub-pixel magnification')
             print('merge tf.concat: {}'.format(merge))
             merge=convmerge1(merge)
             print('convmerge: {}'.format(merge))
-            # print_merge = tf.print(merge, [merge], "Merge: ")
             # Rearranges blocks of depth into spatial data; height and width taken out of the depth dimension
             # large1=tf.depth_to_space(merge,2)
             # Bicubically magnified to obtain HR estimate
-            #out1=convmerge2(large1)
+            # out1=convmerge2(large1)
             out=tf.depth_to_space(merge,2)
             print('out: {}'.format(out))
 
         # HR estimate output
         return tf.stack([out+bic], axis=1,name='out')
-
 
     def build(self):
         in_h,in_w=self.eval_in_size
@@ -234,11 +225,9 @@ class PFNL(VSR):
         for i in range(mse_avg.shape[0]):
             tf.summary.scalar('val_mse{}'.format(i), tf.convert_to_tensor(mse_avg[i], dtype=tf.float32))
         print('Eval PSNR: {}, MSE: {}'.format(psnr_avg, mse_avg))
-        # write to log file
-        with open(self.log_dir, 'a+') as f:
-            mse_avg=(mse_avg*1e6).astype(np.int64)/(1e6)
-            psnr_avg=(psnr_avg*1e6).astype(np.int64)/(1e6)
-            f.write('{'+'"Iter": {} , "PSNR": {}, "MSE": {}'.format(sess.run(self.global_step), psnr_avg.tolist(), mse_avg.tolist())+'}\n')
+        mse_avg = (mse_avg * 1e6).astype(np.int64) / (1e6)
+        psnr_avg=(psnr_avg*1e6).astype(np.int64)/(1e6)
+        return mse_avg.tolist(), psnr_avg.tolist()
 
     def train(self):
         print("Training begin")
@@ -276,35 +265,44 @@ class PFNL(VSR):
         # Starts all queue runners collected in the graph (deprecated)
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        cost_time=0
-        time_str = ''
         # Begin timing the training
         start_time=time.time()
         gs=sess.run(global_step)
+        losses = []
         for step in range(sess.run(global_step), self.max_step):
             if step>gs and step%20==0:
                 #time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v)
                 #print(time_str)
                 print(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v))
-
+                losses.append(loss_v)
             if step % 500 == 0:
                 if step>gs:
                     self.save(sess, self.save_dir, step)
                 training_cost_time=time.time()-start_time
                 print('cost {}s.'.format(training_cost_time))
-                self.eval()
-                cost_time=time.time()-start_time
-                start_time=time.time()
+                np_losses = np.array(losses)
+                avg_loss = np.mean(np_losses)
+                print("Average Loss :{}".format(avg_loss))
+                mse_avg, psnr_avg = self.eval()
+
+                log_dict = {
+                    "Iteration": int(sess.run(self.global_step)),
+                    "PSNR": float(psnr_avg[0]),
+                    "MSE": float(mse_avg[0]),
+                    "Time": training_cost_time,
+                    "Loss": float(avg_loss)
+                }
+
+                with open(self.log_dir, 'a+') as f:
+                    f.write(json.dumps(log_dict))
+                    f.write('\n')
+                cost_time = time.time() - start_time
+                start_time = time.time()
                 print('cost {}s.'.format(cost_time))
 
             lr1,hr=sess.run([LR,HR])
             _,loss_v=sess.run([training_op,self.loss],feed_dict={self.L:lr1, self.H:hr})
-            if step % 500 == 0:
-                # write to log file
-                with open(self.training_log_dir, 'a+') as f:
-                    f.write('{' +'Time:{}, Iter:{}, Loss:{},  Training Time:{}s'
-                            .format(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()), sess.run(self.global_step)-1,
-                                    loss_v, training_cost_time) + '}\n')
+
             if step>500 and loss_v>10:
                 print('Model collapsed with loss={}'.format(loss_v))
                 break

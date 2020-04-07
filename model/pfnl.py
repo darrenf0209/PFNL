@@ -28,7 +28,7 @@ import tensorflow.compat.v1 as tf
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'TRIAL_ONLY'
+NAME = 'LR_1'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
@@ -271,8 +271,6 @@ class PFNL(VSR):
         losses = []
         for step in range(sess.run(global_step), self.max_step):
             if step>gs and step%20==0:
-                #time_str = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v)
-                #print(time_str)
                 print(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()),'Step:{}, loss:{}'.format(step,loss_v))
                 losses.append(loss_v)
             if step % 500 == 0:
@@ -282,7 +280,7 @@ class PFNL(VSR):
                 print('cost {}s.'.format(training_cost_time))
                 np_losses = np.array(losses)
                 avg_loss = np.mean(np_losses)
-                print("Average Loss :{}".format(avg_loss))
+                print("Average Loss from 500 Iterations: {}".format(avg_loss))
                 mse_avg, psnr_avg = self.eval()
 
                 log_dict = {
@@ -458,7 +456,7 @@ class PFNL(VSR):
                 # The datapath is not needed as the files are located at variable k
                 #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
                 # SR for truth
-                self.test_video_truth(k, name='trial_del_{}'.format(int(time.time())), reuse=False, part=1000)
+                self.test_video_truth(k, name=name, reuse=False, part=1000)
                 # SR for blurred and downscaled images
                 # self.test_video_lr(k, name='result_pfnl_blur', reuse=False, part=1000)
 

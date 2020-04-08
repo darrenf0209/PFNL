@@ -17,11 +17,37 @@ import shutil
 import image_slicer
 from os.path import join
 import glob
-import cv2
 
-''' This Function is written by Darren Flaks. Last modified 6/4/20
-This function accepts an input path, scale, name and image format as parameters
-It find all of the folders in the input path and for each folder, it will resize each of the
+'''This function accepts an input path, number of tiles, name and image format as parameters
+It finds all of the folders in the input path and for each folder, it will slice each of the
+images into the number of tiles provided and save the files according to the name supplied.
+The name of each saved image is the same as the original image name input with a suffix'''
+def slice_imgs_truth(path, num_tiles=4, name='truth_downsize_2_slice', img_format='png'):
+    folders = sorted(glob.glob(join(path, '*')))
+    print("Folder list: {}".format(folders))
+    for folder in folders:
+        save_path = join(folder, name)
+        automkdir(save_path)
+        # print("Saved directory is: {}".format(save_path))
+        img_path = join(folder, 'truth_downsize_2')
+        # print("input path: {}".format(img_path))
+        original_img_names = os.listdir(img_path)
+        # print("Original image names: {}".format(original_img_names))
+        imgs = sorted(glob.glob(join(img_path, '*.{}'.format(img_format))))
+        # print("Set of images: {}".format(imgs))
+        for img in range(len(imgs)):
+            img_prefix = "{}".format(original_img_names[img])
+            img_prefix = img_prefix.rstrip('.{}'.format(img_format))
+            tiles = image_slicer.slice(imgs[img], num_tiles, save=False)
+            image_slicer.save_tiles(tiles, directory=save_path, prefix=img_prefix, format=img_format)
+        print("Successfully sliced {} images into {} evenly dimensioned tiles at {}"
+              .format(len(imgs), num_tiles, save_path))
+    return print('Slicing images concluded')
+
+
+
+'''This function accepts an input path, scale, name and image format as parameters
+It finds all of the folders in the input path and for each folder, it will resize each of the
 ground-truth images by the scale factor and save the files according to the name supplied'''
 def resize_imgs_truth(path, scale=0.5, name='resize', img_format='png'):
     folders = sorted(glob.glob(join(path, '*')))

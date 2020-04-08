@@ -28,14 +28,14 @@ import tensorflow.compat.v1 as tf
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_1'
+NAME = 'LR_3'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Take seven 32x32 LR frames as input to compute calculation cost
-        self.num_frames=1
+        self.num_frames=3
         self.scale=2
         self.in_size=32
         self.gt_size=self.in_size*self.scale
@@ -43,7 +43,7 @@ class PFNL(VSR):
         self.batch_size=4
         self.eval_basz=4
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
-        self.learning_rate=1e-3
+        self.learning_rate=0.4e-3
         self.end_lr=1e-4
         self.reload=True
         self.max_step=int(1.5e5+1)
@@ -86,72 +86,72 @@ class PFNL(VSR):
 
             # Creating I_0
             inp0=[x[:,i,:,:,:] for i in range(f1)]
-            print("Creating I_0:{}".format(inp0))
+            # print("Creating I_0:{}".format(inp0))
             # Joining to the end
             inp0=tf.concat(inp0,axis=-1)
-            print("Concatenating at end:{}".format(inp0))
+            # print("Concatenating at end:{}".format(inp0))
             # Rearrange blocks of spatial data into depth; height and width dimensions are moved to depth
             inp1=tf.space_to_depth(inp0,2)
-            print("Re-arrange spatial data into depth inp1:{}".format(inp1))
+            # print("Re-arrange spatial data into depth inp1:{}".format(inp1))
             # Non Local Resblock
             inp1=NonLocalBlock(inp1,int(c)*self.num_frames*4,sub_sample=1,nltype=1,scope='nlblock_{}'.format(0))
-            print("NLRB Output inp1:{}".format(inp1))
+            # print("NLRB Output inp1:{}".format(inp1))
             inp1=tf.depth_to_space(inp1,2)
-            print("Re-arrange depth into spatial data inp1:{}".format(inp1))
+            # print("Re-arrange depth into spatial data inp1:{}".format(inp1))
             # Concatenation
             inp0+=inp1
-            print("inp0+=inp1: {}".format(inp0))
+            # print("inp0+=inp1: {}".format(inp0))
             inp0=tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
-            print("inp0 split: {}".format(inp0))
+            # print("inp0 split: {}".format(inp0))
             # 5x5 convolutional step, before entering the PFRB
             inp0=[conv0(f) for f in inp0]
-            print("inp0 conv0: {}".format(inp0))
+            # print("inp0 conv0: {}".format(inp0))
             # Only resizing the shape
             bic=tf.image.resize_images(x[:,self.num_frames//2,:,:,:],[w*self.scale,h*self.scale],method=2)
-            print("bic: {}".format(bic))
+            # print("bic: {}".format(bic))
 
             # After the 5x5 conv layer, add in the num_blocks of PFRBs to make full extraction of both
             # inter-frame and temporal correlations among multiple LR frames
             for i in range(num_block):
                 # I_1 obtained from the first 3x3 convolution. It denotes feature maps extracted
                 inp1 = [conv1[i](f) for f in inp0]
-                print("I_1: {}".format(inp1))
+                # print("I_1: {}".format(inp1))
 
                 # All I_1 feature maps are concatenated, containing information from all input frames
                 # I_1_merged has depth num_blocks x N, when taking num_blocks frames as input
                 base = tf.concat(inp1, axis=-1)
-                print("I_1_merged: {}".format(base))
+                # print("I_1_merged: {}".format(base))
 
                 # Undergo 1x1 convolution
                 # Filter number set to distillate the deep feature map into a concise one, I_2
                 base = conv10[i](base)
-                print("I_2: {}".format(base))
+                # print("I_2: {}".format(base))
 
                 # Feature maps contain: self-independent spatial information and fully maximised temporal information
                 # I_3 denotes merged feature maps
                 inp2 = [tf.concat([base, f], -1) for f in inp1]
-                print("I_3: {}".format(inp2))
+                # print("I_3: {}".format(inp2))
 
                 # Depth of feature maps is 2 x N and 3x3 conv layers are adopted to extract spatio-temporal information
                 inp2 = [conv2[i](f) for f in inp2]
-                print("I_3_convolved: {}".format(inp2))
+                # print("I_3_convolved: {}".format(inp2))
 
                 # I_0 is added to represent residual learning - output and input are required to have the same size
                 inp0 = [tf.add(inp0[j], inp2[j]) for j in range(f1)]
-                print("PFRB_output: {}".format(inp0))
+                # print("PFRB_output: {}".format(inp0))
 
             # Sub-pixel magnification: Merge and magnify information from PFRB channels to obtain a single HR image
             merge = tf.concat(inp0, axis=-1)
-            print('Sub-pixel magnification')
-            print('merge tf.concat: {}'.format(merge))
+            # print('Sub-pixel magnification')
+            # print('merge tf.concat: {}'.format(merge))
             merge=convmerge1(merge)
-            print('convmerge: {}'.format(merge))
+            # print('convmerge: {}'.format(merge))
             # Rearranges blocks of depth into spatial data; height and width taken out of the depth dimension
             # large1=tf.depth_to_space(merge,2)
             # Bicubically magnified to obtain HR estimate
             # out1=convmerge2(large1)
             out=tf.depth_to_space(merge,2)
-            print('out: {}'.format(out))
+            # print('out: {}'.format(out))
 
         # HR estimate output
         return tf.stack([out+bic], axis=1,name='out')
@@ -192,7 +192,7 @@ class PFNL(VSR):
         eval_inp=DownSample(eval_gt, BLUR, scale=self.scale)
 
         filenames=open(self.eval_dir, 'rt').read().splitlines()#sorted(glob.glob(join(self.eval_dir,'*')))
-        print("Filenames: {}".format(filenames))
+        # print("Filenames: {}".format(filenames))
         gt_list=[sorted(glob.glob(join(f,'truth_downsize_2','*.png'))) for f in filenames]
         center=15
         batch_gt = []
@@ -284,10 +284,12 @@ class PFNL(VSR):
                 mse_avg, psnr_avg = self.eval()
 
                 log_dict = {
+                    "Date": time.strftime("%Y-%m-%d", time.localtime()),
+                    "Time": time.strftime("%H:%M:%S", time.localtime()),
                     "Iteration": int(sess.run(self.global_step)),
                     "PSNR": float(psnr_avg[0]),
                     "MSE": float(mse_avg[0]),
-                    "Time": training_cost_time,
+                    "Training Time": training_cost_time,
                     "Loss": float(avg_loss)
                 }
 

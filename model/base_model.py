@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image
 import scipy
 from utils import LoadImage, DownSample, DownSample_4D, BLUR, AVG_PSNR, depth_to_space_3D, DynFilter3D, LoadParams, cv2_imread, cv2_imsave, get_num_params, automkdir
-from model.nets import FR_16L, FR_28L, FR_52L
 from modules.videosr_ops import imwarp_forward
 import time
 import os

@@ -6,6 +6,21 @@ import image_slicer
 import cv2
 from utils import automkdir
 
+
+def copy_to_loc(path, stop, name='new_folder', img_format='png'):
+    folders = sorted(glob.glob(join(path, '*')))
+    print("Folder list: {}".format(folders))
+    for folder in folders:
+        save_path = join(folder, name)
+        automkdir(save_path)
+        img_path = join(folder, 'truth_downsize_2')
+        imgs = sorted(glob.glob(join(img_path, '*.{}'.format(img_format))))
+        for i in range(stop):
+            shutil.copy2(imgs[i], save_path)
+        print("Successfully copied the first {} files from {} into {}"
+              .format(stop, img_path, save_path))
+
+
 '''This function accepts an input path, number of tiles, name and image format as parameters
 It finds all of the folders in the input path and for each folder, it will slice each of the
 images into the number of tiles provided and save the files according to the name supplied.

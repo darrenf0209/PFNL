@@ -28,14 +28,14 @@ import tensorflow.compat.v1 as tf
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_3'
+NAME = 'LR_7'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Take seven 32x32 LR frames as input to compute calculation cost
-        self.num_frames=3
+        self.num_frames=7
         self.scale=2
         self.in_size=32
         self.gt_size=self.in_size*self.scale
@@ -308,16 +308,20 @@ class PFNL(VSR):
                 break
 
 
-
+    '''
+    This function accepts video frames of high quality and down-samples them by the scale factor
+    It then passes the down-sampled imaged through the network to perform 2xSR
+    '''
     def test_video_truth(self, path, name='result', reuse=True, part=50):
         save_path=join(path,name)
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
         inp_path=join(path,'truth_downsize_2')
+        # inp_path=join(path,'truth_downsize_2')
         print("Input Path: {}".format(inp_path))
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
-        print("Image: {}".format(imgs))
+        print("Image set: {}".format(imgs))
         max_frame=len(imgs)
         print("Number of frames: {}".format(max_frame))
         imgs=np.array([cv2_imread(i) for i in imgs])/255.
@@ -379,15 +383,23 @@ class PFNL(VSR):
             all_time=np.array(all_time)
             print('spent {} s in total and {} s in average'.format(np.sum(all_time),np.mean(all_time[1:])))
 
-    # This function is identical to test_video_truth, except it uses the blurred images
+    '''
+    This function accepts video frames of low quality and
+    passes them through the network to perform 2xSR
+    '''
     def test_video_lr(self, path, name='result', reuse=False, part=50):
         save_path=join(path,name)
+        print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
-        inp_path=join(path,'blur4')
+        inp_path = join(path, 'blur4')
+        # inp_path=join(path,'truth_downsize_4')
+        print("Input Path: {}".format(inp_path))
         # inp_path=join(path,'blur{}'.format(self.scale)) original
         imgs=sorted(glob.glob(join(inp_path,'*.png')))
+        print("Image set: {}".format(imgs))
         max_frame=len(imgs)
+        print("Number of frames: {}".format(max_frame))
         lrs=np.array([cv2_imread(i) for i in imgs])/255.
 
         if part>max_frame:
@@ -443,7 +455,7 @@ class PFNL(VSR):
 
     # Default path written by authors
     def testvideos(self, path='/dev/f/data/video/test2/udm10', start=0, name='pfnl'):
-        kind=sorted(glob.glob(join(path,'*')))
+        kind=sorted(glob.glob(join(path, '*')))
         print("kind: {}".format(kind))
         kind=[k for k in kind if os.path.isdir(k)]
         reuse=False
@@ -453,14 +465,14 @@ class PFNL(VSR):
             if idx>=start:
                 if idx>start:
                     reuse=True
-                datapath=join(path,k)
-                print("Datapath: {}".format(datapath))
+                # datapath=join(path,k)
+                print("Datapath: {}".format(k))
                 # The datapath is not needed as the files are located at variable k
-                #self.test_video_truth(datapath, name=name, reuse=reuse, part=1000)
-                # SR for truth
+                # SR with HR as source
                 self.test_video_truth(k, name=name, reuse=False, part=1000)
-                # SR for blurred and downscaled images
-                # self.test_video_lr(k, name='result_pfnl_blur', reuse=False, part=1000)
+                # SR with LR as source
+                # self.test_video_lr(k, name=name, reuse=False, part=1000)
+
 
 if __name__=='__main__':
     model=PFNL()

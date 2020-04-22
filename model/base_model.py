@@ -158,7 +158,7 @@ class VSR(object):
             data_seq = tf.random_crop(self.data_queue, [1, self.num_frames])
             print("Data seq: {}".format(data_seq))
             # input = tf.stack([tf.image.decode_png(tf.read_file(data_seq[0][i]), channels=3) for i in range(self.num_frames)])
-            # Stacks the converted uint8 input frames into one tensor
+            # Ground truth is a stack of the converted uint8 input frames into one tensor
             gt = tf.stack(
                 # Deocde each PNG of the input data sequence into a uint8 tensor
                 [tf.image.decode_png(tf.read_file(data_seq[0][i]), channels=3) for i in range(self.num_frames)])
@@ -173,7 +173,7 @@ class VSR(object):
             # number of frames, width, height and channels
             n, w, h, c = gt.shape
             print("n: {}, width: {}, height: {}, channels: {}".format(n, w, h, c))
-            # Retrieve the width, height and channels from gt
+            # Retrieve the width, height and channels from the ground-truth
             sp = tf.shape(gt)[1:]
             print("sp: {}".format(sp))
             # Convert square to int32
@@ -202,7 +202,7 @@ class VSR(object):
 
             inp.set_shape([self.num_frames, self.in_size, self.in_size, 3])
             gt.set_shape([1, self.in_size * self.scale, self.in_size * self.scale, 3])
-            print('Input producer shape: ', inp.get_shape(), gt.get_shape())
+            print('Input producer shapes: LR: {}, HR: {}'.format(inp.get_shape(), gt.get_shape()))
 
             return inp, gt
         print("Reading training directory")
@@ -214,14 +214,15 @@ class VSR(object):
         with tf.variable_scope('trainin'):
             gtList_all = []
             for dataPath in pathlist:
-                # Retrieve the HR images in the datapth
+                # Retrieve the ground-truth images in the datapath and append to a single list
                 gtList = sorted(glob.glob(os.path.join(dataPath, 'truth_downsize_2/*.png')))
                 gtList_all.append(gtList)
-            # Convert paths to each training image to tensor strings
+            # Convert paths to ground-truth images to tensor strings
             gtList_all = tf.convert_to_tensor(gtList_all, dtype=tf.string)
 
             # Prepare the data queue by slicing the string tensors according to queue capacity
             self.data_queue = tf.train.slice_input_producer([gtList_all], capacity=self.batch_size * 2)
+            # Pass the input
             input, gt = read_data()
             batch_in, batch_gt = tf.train.batch([input, gt], batch_size=self.batch_size, num_threads=3,
                                                 capacity=self.batch_size * 2)

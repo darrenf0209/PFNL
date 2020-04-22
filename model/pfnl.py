@@ -30,7 +30,6 @@ This is a modified version of PFNL by Darren Flaks.
 '''
 NAME = 'LR_7'
 
-
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
@@ -248,10 +247,10 @@ class PFNL(VSR):
     def train(self):
         print("Training begin")
         LR, HR = self.single_input_producer()
-        print("LR: {}\n HR: {}".format(LR, HR))
+        print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)
-        print("Global step: {}".format(global_step))
         self.global_step = global_step
+        print("Global step: {}".format(global_step))
         self.build()
         lr = tf.train.polynomial_decay(self.learning_rate, global_step, self.decay_step, end_learning_rate=self.end_lr,
                                        power=1.)

@@ -28,14 +28,14 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_7'
+NAME = 'LR_LR'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
-        self.num_frames = 7
+        self.num_frames = 2
         self.scale = 2
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
@@ -113,7 +113,7 @@ class PFNL(VSR):
             inp0 = [conv0(f) for f in inp0]
             # print("inp0 conv0: {}".format(inp0))
             # Only resizing the shape
-            bic = tf.image.resize_images(x[:, self.num_frames // 2, :, :, :], [w * self.scale, h * self.scale],
+            bic = tf.image.resize_images(x[:, -1, :, :, :], [w * self.scale, h * self.scale],
                                          method=2)
             # print("bic: {}".format(bic))
 

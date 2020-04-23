@@ -172,7 +172,7 @@ class VSR(object):
         def prepprocessing(gt=None):
             # number of frames, width, height and channels
             n, w, h, c = gt.shape
-            print("n: {}, width: {}, height: {}, channels: {}".format(n, w, h, c))
+            print("num_frames: {}, width: {}, height: {}, channels: {}".format(n, w, h, c))
             # Retrieve the width, height and channels from the ground-truth
             sp = tf.shape(gt)[1:]
             print("sp: {}".format(sp))
@@ -191,14 +191,21 @@ class VSR(object):
             print("size_gt: {}".format(size_gt))
 
             gt = tf.slice(gt, offset_gt, size_gt)
+            print("gt tf.slice: {}".format(gt))
             gt = tf.cast(gt, tf.float32) / 255.
+            print("gt tf.cast: {}".format(gt))
             # Data augmentation scheme with random flip and rotations
             flip = tf.random_uniform((1, 3), minval=0.0, maxval=1.0, dtype=tf.float32, seed=None, name=None)
             gt = tf.where(flip[0][0] < 0.5, gt, gt[:, ::-1])
+            print("gt flip[0][0]: {}".format(gt))
             gt = tf.where(flip[0][1] < 0.5, gt, gt[:, :, ::-1])
+            print("gt flip[0][1]: {}".format(gt))
             gt = tf.where(flip[0][2] < 0.5, gt, tf.transpose(gt, perm=(0, 2, 1, 3)))
+            print("gt flip[0][2]: {}".format(gt))
             inp = DownSample_4D(gt, BLUR, scale=self.scale)
+            print("inp: {}".format(inp))
             gt = gt[n // 2:n // 2 + 1, :, :, :]
+            print("gt: {}".format(gt))
 
             inp.set_shape([self.num_frames, self.in_size, self.in_size, 3])
             gt.set_shape([1, self.in_size * self.scale, self.in_size * self.scale, 3])
@@ -219,6 +226,8 @@ class VSR(object):
                 gtList_all.append(gtList)
             # Convert paths to ground-truth images to tensor strings
             gtList_all = tf.convert_to_tensor(gtList_all, dtype=tf.string)
+            print("gtList_all: {}".format(gtList_all))
+            print("There are {} video sequences, each with {} frames".format(gtList_all.shape[0], gtList_all.shape[1]))
 
             # Prepare the data queue by slicing the string tensors according to queue capacity
             self.data_queue = tf.train.slice_input_producer([gtList_all], capacity=self.batch_size * 2)

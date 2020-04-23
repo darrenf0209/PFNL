@@ -40,8 +40,8 @@ class PFNL(VSR):
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
         self.eval_in_size = [128, 240]
-        self.batch_size = 4
-        self.eval_basz = 4
+        self.batch_size = 1
+        self.eval_basz = 1
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate = 0.4e-3
         self.end_lr = 1e-4
@@ -113,8 +113,7 @@ class PFNL(VSR):
             inp0 = [conv0(f) for f in inp0]
             # print("inp0 conv0: {}".format(inp0))
             # Only resizing the shape
-            bic = tf.image.resize_images(x[:, -1, :, :, :], [w * self.scale, h * self.scale],
-                                         method=2)
+            bic = tf.image.resize_images(x[:, -1, :, :, :], [w * self.scale, h * self.scale], method=2)
             # print("bic: {}".format(bic))
 
             # After the 5x5 conv layer, add in the num_blocks of PFRBs to make full extraction of both
@@ -198,6 +197,7 @@ class PFNL(VSR):
 
         eval_gt = tf.placeholder(tf.float32, [None, self.num_frames, out_h, out_w, 3])
         eval_inp = DownSample(eval_gt, BLUR, scale=self.scale)
+        print("eval_inp: {}".format(eval_inp))
 
         filenames = open(self.eval_dir, 'rt').read().splitlines()  # sorted(glob.glob(join(self.eval_dir,'*')))
         # print("Filenames: {}".format(filenames))
@@ -210,14 +210,21 @@ class PFNL(VSR):
             max_frame = len(gtlist)
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
-                index = np.array([i for i in range(idx0 - self.num_frames // 2, idx0 + self.num_frames // 2 + 1)])
+                index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
+                print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
+                print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
                 gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
                 batch_gt.append(np.stack(gt, axis=0))
+                # print("batch_gt shape: {}".format(batch_gt))
+                print('length of gtlist: {}'.format(len(gtlist)))
+                print("length of gt: {}".format(len(gt)))
+
 
                 if len(batch_gt) == self.eval_basz:
                     batch_gt = np.stack(batch_gt, 0)
+                    # print("batch_gt: {}".format(batch_gt))
                     batch_lr = sess.run(eval_inp, feed_dict={eval_gt: batch_gt})
                     mse_val = sess.run(self.eval_mse,
                                        feed_dict={self.L_eval: batch_lr,

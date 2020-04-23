@@ -374,6 +374,7 @@ class PFNL(VSR):
         if not reuse:
             self.img_hr = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='H_truth')
             self.img_lr = DownSample_4D(self.img_hr, BLUR, scale=self.scale)
+            print("img_lr: {}".format(self.img_lr))
             config = tf.ConfigProto()
             # Allow growth attempts to allocate only as much GPU memory based on runtime allocations
             config.gpu_options.allow_growth = True
@@ -390,7 +391,7 @@ class PFNL(VSR):
         lr_list = []
         max_frame = lrs.shape[0]
         for i in range(max_frame):
-            index = np.array([i for i in range(i - self.num_frames // 2, i + self.num_frames // 2 + 1)])
+            index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
             print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
@@ -463,8 +464,10 @@ class PFNL(VSR):
         lr_list = []
         max_frame = lrs.shape[0]
         for i in range(max_frame):
-            index = np.array([i for i in range(i - self.num_frames // 2, i + self.num_frames // 2 + 1)])
+            index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
+            print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
+            print("index: {}".format(index))
             lr_list.append(np.array([lrs[j] for j in index]))
         lr_list = np.array(lr_list)
 

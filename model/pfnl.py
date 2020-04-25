@@ -112,7 +112,7 @@ class PFNL(VSR):
             # 5x5 convolutional step, before entering the PFRB
             inp0 = [conv0(f) for f in inp0]
             # print("inp0 conv0: {}".format(inp0))
-            # Only resizing the shape
+            # Last frame is the current frame (causal system)
             bic = tf.image.resize_images(x[:, -1, :, :, :], [w * self.scale, h * self.scale], method=2)
             # print("bic: {}".format(bic))
 
@@ -392,7 +392,7 @@ class PFNL(VSR):
         max_frame = lrs.shape[0]
         for i in range(max_frame):
             index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
-            print("index: {}".format(index))
+            # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
             lr_list.append(np.array([lrs[j] for j in index]))

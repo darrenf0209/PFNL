@@ -160,7 +160,7 @@ class VSR(object):
             # input = tf.stack([tf.image.decode_png(tf.read_file(data_seq[0][i]), channels=3) for i in range(self.num_frames)])
             # Ground truth is a stack of the converted uint8 input frames into one tensor
             gt = tf.stack(
-                # Deocde each PNG of the input data sequence into a uint8 tensor
+                # Decode each PNG of the input data sequence into a uint8 tensor
                 [tf.image.decode_png(tf.read_file(data_seq[0][i]), channels=3) for i in range(self.num_frames)])
             # gt = tf.stack([tf.image.decode_png(tf.read_file(data_seq[1][i]), channels=3) for i in range(self.num_frames)])
 

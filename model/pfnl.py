@@ -211,7 +211,9 @@ class PFNL(VSR):
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
                 index = np.array([i for i in range(idx0 - self.num_frames // 2, idx0 + self.num_frames // 2 + 1)])
+                print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
+                print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
                 gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
                 batch_gt.append(np.stack(gt, axis=0))
@@ -290,9 +292,10 @@ class PFNL(VSR):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-            if step % 500 == 0:
-                if step > gs:
-                    self.save(sess, self.save_dir, step)
+            if (time.time() - start_time) > 5 and step % 500 == 0:
+                # if step > gs:
+                #     self.save(sess, self.save_dir, step)
+                self.save(sess, self.save_dir, step)
                 training_cost_time = time.time() - start_time
                 print('cost {}s.'.format(training_cost_time))
                 np_losses = np.array(losses)
@@ -314,8 +317,9 @@ class PFNL(VSR):
                     f.write(json.dumps(log_dict))
                     f.write('\n')
                 cost_time = time.time() - start_time
+                print('Training and evaluation cost {}s.'.format(cost_time))
                 start_time = time.time()
-                print('cost {}s.'.format(cost_time))
+                print("Timing restarted")
 
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
@@ -375,7 +379,9 @@ class PFNL(VSR):
         max_frame = lrs.shape[0]
         for i in range(max_frame):
             index = np.array([i for i in range(i - self.num_frames // 2, i + self.num_frames // 2 + 1)])
+            print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
+            print("index: {}".format(index))
             lr_list.append(np.array([lrs[j] for j in index]))
         lr_list = np.array(lr_list)
 

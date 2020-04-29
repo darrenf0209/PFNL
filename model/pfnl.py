@@ -210,6 +210,7 @@ class PFNL(VSR):
             max_frame = len(gtlist)
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
+                print("idx0: {}".format(idx0))
                 index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
                 print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
@@ -390,7 +391,8 @@ class PFNL(VSR):
 
         lr_list = []
         max_frame = lrs.shape[0]
-        for i in range(max_frame):
+        frames_foregone = 5
+        for i in range(frames_foregone, max_frame - frames_foregone):
             index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
             # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
@@ -403,7 +405,7 @@ class PFNL(VSR):
         h, w, c = lrs.shape[1:]
 
         all_time = []
-        for i in trange(part):
+        for i in trange(part - 2*frames_foregone):
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
@@ -414,7 +416,7 @@ class PFNL(VSR):
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
                 # Name of saved file. This should match the 'truth' format for easier analysis in future.
-                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i * num_once + j + 1)), img)
+                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i * num_once + j + 1)), img)
         all_time = np.array(all_time)
         if max_frame > 0:
             all_time = np.array(all_time)
@@ -463,7 +465,8 @@ class PFNL(VSR):
 
         lr_list = []
         max_frame = lrs.shape[0]
-        for i in range(max_frame):
+        frames_foregone = 5
+        for i in range(frames_foregone, max_frame - frames_foregone):
             index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
             print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
@@ -476,7 +479,7 @@ class PFNL(VSR):
         h, w, c = lrs.shape[1:]
 
         all_time = []
-        for i in trange(part):
+        for i in trange(part - 2*frames_foregone):
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
@@ -486,7 +489,7 @@ class PFNL(VSR):
                 img = sr[j][0] * 255.
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
-                cv2_imsave(join(save_path, '{:0>4}.png'.format(i * num_once + j)), img)
+                cv2_imsave(join(save_path, '{:0>4}.png'.format(frames_foregone + i * num_once + j)), img)
 
         all_time = np.array(all_time)
         if max_frame > 0:

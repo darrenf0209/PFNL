@@ -28,7 +28,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_LR'
+NAME = 'DELETE_TEST'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
@@ -99,7 +99,7 @@ class PFNL(VSR):
             inp1 = tf.space_to_depth(inp0, 2)
             # print("Re-arrange spatial data into depth inp1:{}".format(inp1))
             # Non Local Resblock
-            inp1 = NonLocalBlock(inp1, int(c) * self.num_frames * 4, sub_sample=1, nltype=1,
+            inp1 = NonLocalBlock(inp1, int(c) * (self.num_frames+3) * 4, sub_sample=1, nltype=1,
                                  scope='nlblock_{}'.format(0))
             # print("NLRB Output inp1:{}".format(inp1))
             inp1 = tf.depth_to_space(inp1, 2)
@@ -107,7 +107,7 @@ class PFNL(VSR):
             # Concatenation
             inp0 += inp1
             # print("inp0+=inp1: {}".format(inp0))
-            inp0 = tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
+            inp0 = tf.split(inp0, num_or_size_splits=(self.num_frames+3), axis=-1)
             # print("inp0 split: {}".format(inp0))
             # 5x5 convolutional step, before entering the PFRB
             inp0 = [conv0(f) for f in inp0]
@@ -167,9 +167,9 @@ class PFNL(VSR):
         # H is the corresponding HR centre frame
         H = tf.placeholder(tf.float32, shape=[None, 1, None, None, 3], name='H_truth')
         # I is L_train, representing the input LR frames
-        L_train = tf.placeholder(tf.float32, shape=[self.batch_size, self.num_frames, self.in_size, self.in_size, 3],
+        L_train = tf.placeholder(tf.float32, shape=[self.batch_size, (self.num_frames+3), self.in_size, self.in_size, 3],
                                  name='L_train')
-        L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, self.num_frames, in_h, in_w, 3], name='L_eval')
+        L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, (self.num_frames+3), in_h, in_w, 3], name='L_eval')
         # SR denotes the function of the super-resolution network
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
@@ -195,13 +195,13 @@ class PFNL(VSR):
         out_w = in_w * self.scale  # 960
         bd = border // self.scale
 
-        eval_gt = tf.placeholder(tf.float32, [None, self.num_frames, out_h, out_w, 3])
+        eval_gt = tf.placeholder(tf.float32, [None, (self.num_frames+3), out_h, out_w, 3])
         eval_inp = DownSample(eval_gt, BLUR, scale=self.scale)
         print("eval_inp: {}".format(eval_inp))
 
         filenames = open(self.eval_dir, 'rt').read().splitlines()  # sorted(glob.glob(join(self.eval_dir,'*')))
         # print("Filenames: {}".format(filenames))
-        gt_list = [sorted(glob.glob(join(f, 'truth_downsize_2', '*.png'))) for f in filenames]
+        gt_list = [sorted(glob.glob(join(f, 'truth', '*.png'))) for f in filenames]
         center = 15
         batch_gt = []
         batch_cnt = 0
@@ -210,7 +210,7 @@ class PFNL(VSR):
             max_frame = len(gtlist)
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
-                index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
+                index = np.array([i for i in range(idx0 - (self.num_frames+3) + 1, idx0 + 1)])
                 print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
                 print("Index: {}".format(index))
@@ -228,7 +228,7 @@ class PFNL(VSR):
                     batch_lr = sess.run(eval_inp, feed_dict={eval_gt: batch_gt})
                     mse_val = sess.run(self.eval_mse,
                                        feed_dict={self.L_eval: batch_lr,
-                                                  self.H: batch_gt[:, self.num_frames // 2:self.num_frames // 2 + 1]})
+                                                  self.H: batch_gt[:, (self.num_frames+3) // 2:(self.num_frames+3) // 2 + 1]})
                     # print("Batch LR {}".format(batch_lr))
                     # print("Batch gt {}".format(batch_gt))
                     # print("MSE Value: {}".format(mse_val))
@@ -254,6 +254,8 @@ class PFNL(VSR):
     def train(self):
         print("Training begin")
         LR, HR = self.single_input_producer()
+        LR = tf.expand_dims(LR, 0)
+        HR = tf.expand_dims(HR, 0)
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)
         self.global_step = global_step
@@ -335,6 +337,7 @@ class PFNL(VSR):
 
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
+            # _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: LR, self.H: HR})
 
             if step > 500 and loss_v > 10:
                 print('Model collapsed with loss={}'.format(loss_v))
@@ -368,7 +371,7 @@ class PFNL(VSR):
 
         h, w, c = imgs[0].shape
 
-        L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h // self.scale, w // self.scale, 3],
+        L_test = tf.placeholder(tf.float32, shape=[num_once, (self.num_frames+3), h // self.scale, w // self.scale, 3],
                                 name='L_test')
         SR_test = self.forward(L_test)
         if not reuse:
@@ -391,7 +394,7 @@ class PFNL(VSR):
         lr_list = []
         max_frame = lrs.shape[0]
         for i in range(max_frame):
-            index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
+            index = np.array([i for i in range(i - (self.num_frames+3) + 1, i + 1)])
             # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
@@ -449,7 +452,7 @@ class PFNL(VSR):
 
         h, w, c = lrs[0].shape
 
-        L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h, w, 3], name='L_test')
+        L_test = tf.placeholder(tf.float32, shape=[num_once, (self.num_frames+3), h, w, 3], name='L_test')
         SR_test = self.forward(L_test)
         if not reuse:
             config = tf.ConfigProto()
@@ -464,7 +467,7 @@ class PFNL(VSR):
         lr_list = []
         max_frame = lrs.shape[0]
         for i in range(max_frame):
-            index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
+            index = np.array([i for i in range(i - (self.num_frames+3) + 1, i + 1)])
             print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))

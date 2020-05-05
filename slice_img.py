@@ -8,15 +8,21 @@ import matplotlib.pyplot as plt
 
 def tf_tile_image(img_4d, save=False):
     # (Num Frame, Height, Width, Channels)
-    print(img_4d.shape)
-    n, h, w, c = img_4d.shape
-    offset_height = [0, h // 2]
-    offset_width = [0, w // 2]
-    target_height = h // 2
+    print("Original image shape before tiling: {}".format(img_4d.shape))
+    shape = tf.shape(img_4d)
+    print("Shape: {}".format(shape))
+    # n, h, w, c = shape
+    # offset_height = [0, 360]
+    # offset_width = [0, 636]
+    offset_height = [0, shape[1] // 2]
+    offset_width = [0, shape[2] // 2]
+    # target_height = 360
+    target_height = shape[1] // 2
     # print("target height: {}".format(target_height))
-    target_width = w // 2
+    # target_width = 636
+    target_width = shape[2] // 2
     # print("target width: {}".format(target_width))
-    temp_stack = tf.zeros([1, target_height, target_width, c], dtype=tf.uint8)
+    temp_stack = tf.zeros([1, target_height, target_width, shape[3]], dtype=tf.uint8)
     for height in offset_height:
         for width in offset_width:
             # print("Offset Height: {}, Offset Width: {}".format(height, width))
@@ -40,10 +46,13 @@ def tf_tile_image(img_4d, save=False):
 def tf_resize_image(img_4d, scale=2, save=False):
     # (Batch, Height, Width, Channels)
     # if 4d image given, remove Num_Frame
-    print(img_4d.shape)
-    n, h, w, c = img_4d.shape
-    new_height = h // scale
-    new_width = w // scale
+    print("Image shape: {}".format(img_4d.shape))
+    shape = tf.shape(img_4d)
+    # n, h, w, c = img_4d.shape
+    new_height = shape[1] // scale
+    new_width = shape[2] // scale
+    # new_height = h // scale
+    # new_width = w // scale
     resized_img = tf.image.resize(img_4d[1, :, :, :], (new_height, new_width))
     # print("New Height: {}, New Width: {}".format(resized_img.shape[0], resized_img.shape[1]))
     resized_img = tf.cast(resized_img, tf.uint8)

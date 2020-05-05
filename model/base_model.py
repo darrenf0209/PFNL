@@ -6,12 +6,14 @@ import random
 import numpy as np
 from PIL import Image
 import scipy
+import cv2
 from utils import LoadImage, DownSample, DownSample_4D, BLUR, AVG_PSNR, depth_to_space_3D, DynFilter3D, LoadParams, \
     cv2_imread, cv2_imsave, get_num_params, automkdir
 from modules.videosr_ops import imwarp_forward
 import time
 import os
 from tqdm import trange, tqdm
+from utilities.pre_processing import resize_img, tile_img
 from slice_img import tf_resize_image, tf_tile_image
 # NEW
 import tensorflow.compat.v1 as tf
@@ -35,6 +37,61 @@ class VSR(object):
         self.eval_dir = './data/filelist_val.txt'
         self.save_dir = './checkpoint'
         self.log_dir = './eval_log.txt'
+
+    def hypothesis_pipeline(self):
+        # 1) Retrieve paths to all training files
+        print("Reading training directory")
+        pathlist = open(self.train_dir, 'rt').read().splitlines()
+        print("There are {} video sequences".format(len(pathlist)))
+
+        # 2) Shuffle the training paths
+        random.shuffle(pathlist)
+        print("First folder in shuffled pathlist: {}".format(pathlist[0]))
+
+        # Gather all images from shuffled pathlist
+        gt_list_all = []
+        for path in pathlist:
+            gt_list = sorted(glob.glob(os.path.join(path, 'truth/*.png')))
+            gt_list_all.append(gt_list)
+        # print("First list of images in shuffled pathlist: {}".format(gt_list_all[0]))
+
+        # Choose a random batch of 2 from the full list
+        # Select a random video sequence
+        rand_vid = random.randint(0, len(gt_list_all)-1)
+        print("rand_vid index: {}".format(rand_vid))
+        gt_vid = gt_list_all[rand_vid]
+        print("gt_vid: {}".format(gt_vid))
+        # Select a random index frame from selected video sequence
+        rand_frame = random.randint(0, len(gt_vid) - self.num_frames)
+        print(len(gt_vid) - self.num_frames)
+        print("rand_frame index: {}".format(rand_frame))
+        # Create a batch self.num_frames from the index frame
+        gt_batch = gt_vid[rand_frame:rand_frame + self.num_frames]
+        print("Batch_list: {}".format(gt_batch))
+        tiled_img = tile_img(gt_batch[0])
+        resized_img = resize_img(gt_batch[-1])
+        gt_batch = tiled_img.append(resized_img)
+        gt_batch = np.array(gt_batch)
+        # gt_batch = tiled_img.append(resized_img)
+        print("new batch shape: {}".format(gt_batch.shape))
+
+
+
+
+
+        # 3) Save shuffled paths into a txt file for later usage
+
+        # 4) Load 2 images from the shuffled data paths with cv2
+
+        # 5) Tile the first image
+
+        # 6) Resize the second image
+
+        # 7) View the exact parts of each image at this point
+
+        # 8) Perform the remainder of data augmentation...
+
+        # return batch...
 
     def frvsr_input_producer(self):
         def read_data():
@@ -181,7 +238,6 @@ class VSR(object):
 
             return input, gt
 
-
         def prepprocessing(gt=None):
             # number of frames, width, height and channels
             n, w, h, c = gt.shape
@@ -226,6 +282,7 @@ class VSR(object):
             print('Input producer shapes: LR: {}, HR: {}'.format(inp.get_shape(), gt.get_shape()))
 
             return inp, gt
+
         print("Reading training directory")
         pathlist = open(self.train_dir, 'rt').read().splitlines()
         # Shuffle the paths of training data to reduce variance, ensure model remains general and prevent overfitting

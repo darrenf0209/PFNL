@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 
 def tf_tile_image(img_4d, save=False):
     # (Num Frame, Height, Width, Channels)
-    print("Original image shape before tiling: {}".format(img_4d.shape))
+    # print("Original image shape before tiling: {}".format(img_4d.shape))
     shape = tf.shape(img_4d)
-    print("Shape: {}".format(shape))
+    # print("Shape: {}".format(shape))
     # n, h, w, c = shape
     # offset_height = [0, 360]
     # offset_width = [0, 636]
@@ -36,17 +36,17 @@ def tf_tile_image(img_4d, save=False):
                 tf.write_file(file_name, output_image)
             img_bbox = tf.expand_dims(img_bbox, 0)
             temp_stack = tf.concat([temp_stack, img_bbox], axis=0)
-            print("temp stack shape during: {}".format(temp_stack.shape))
-    print("temp stack after : {}".format(temp_stack.shape))
+            # print("temp stack shape during: {}".format(temp_stack.shape))
+    # print("temp stack after : {}".format(temp_stack.shape))
     output = temp_stack[1:, :, :, :]
-    print("temp stack after slice : {}".format(output.shape))
+    # print("temp stack after slice : {}".format(output.shape))
 
     return output
 
 def tf_resize_image(img_4d, scale=2, save=False):
     # (Batch, Height, Width, Channels)
     # if 4d image given, remove Num_Frame
-    print("Image shape: {}".format(img_4d.shape))
+    # print("Image shape: {}".format(img_4d.shape))
     shape = tf.shape(img_4d)
     # n, h, w, c = img_4d.shape
     new_height = shape[1] // scale
@@ -56,9 +56,9 @@ def tf_resize_image(img_4d, scale=2, save=False):
     resized_img = tf.image.resize(img_4d[1, :, :, :], (new_height, new_width))
     # print("New Height: {}, New Width: {}".format(resized_img.shape[0], resized_img.shape[1]))
     resized_img = tf.cast(resized_img, tf.uint8)
-    print(" Before resized image shape: {}".format(resized_img.shape))
+    # print(" Before resized image shape: {}".format(resized_img.shape))
     resized_img = tf.expand_dims(resized_img, 0)
-    print(" After resized image shape: {}".format(resized_img.shape))
+    # print(" After resized image shape: {}".format(resized_img.shape))
     if save:
         output_image = tf.image.encode_png(resized_img[0, :, :, :])
         file_name = tf.constant('./data/Output_image_scale_{}.png'.format(scale))

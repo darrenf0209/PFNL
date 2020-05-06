@@ -115,17 +115,19 @@ class VSR(object):
         gt_batch = np.concatenate((tiled_imgs, resized_img), axis=0)
         print("new batch shape: {}".format(gt_batch.shape))
 
+        # Call original pre-processing function for data augmentation, flip and resizing
+        inp, gt = prepprocessing(gt_batch)
+
         # Debugging code to view the batch
         # for i in range(len(gt_batch)):
         #     cv2.imshow("img_{}".format(i), gt_batch[i, :, :, :])
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        # Call original pre-processing function for data augmentation, flip and resizing
 
-        input, gt = prepprocessing(gt_batch)
 
-        return input, gt
+
+        return inp, gt
 
 
     def frvsr_input_producer(self):

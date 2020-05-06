@@ -39,16 +39,13 @@ class VSR(object):
         self.log_dir = './eval_log.txt'
 
     def hypothesis_pipeline(self):
-        # Retrieve paths to all training files
+        # Retrieve paths to all training files and then shuffle
         print("Reading training directory")
         pathlist = open(self.train_dir, 'rt').read().splitlines()
         print("There are {} video sequences".format(len(pathlist)))
-
-        # Shuffle the training paths
         random.shuffle(pathlist)
-        print("First folder in shuffled pathlist: {}".format(pathlist[0]))
 
-        # Gather all images from shuffled pathlist
+        # Store all image paths into a single ground-truth list
         gt_list_all = []
         for path in pathlist:
             gt_list = sorted(glob.glob(os.path.join(path, 'truth/*.png')))
@@ -60,25 +57,27 @@ class VSR(object):
         gt_vid = gt_list_all[rand_vid]
         print("gt_vid: {}".format(gt_vid))
 
-        # Select a random index frame from selected video sequence
+        # Select a random index frame from the selected video sequence
         rand_frame = random.randint(0, len(gt_vid) - self.num_frames)
         print(len(gt_vid) - self.num_frames)
         print("rand_frame index: {}".format(rand_frame))
 
-        # Create a batch of length self.num_frames from the index frame
+        # Create a batch of length self.num_frames, starting from the index frame
         gt_batch = gt_vid[rand_frame:rand_frame + self.num_frames]
         print("Batch_list: {}".format(gt_batch))
         tiled_imgs = tile_img(gt_batch[0])
         resized_img = resize_img(gt_batch[-1])
         resized_img = np.expand_dims(resized_img, axis=0)
         gt_batch = np.concatenate((tiled_imgs, resized_img), axis=0)
+        print("new batch shape: {}".format(gt_batch.shape))
 
         # Debugging code to view the batch
-        for i in range(len(gt_batch)):
-            cv2.imshow("img_{}".format(i), gt_batch[i, :, :, :])
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        print("new batch shape: {}".format(gt_batch.shape))
+        # for i in range(len(gt_batch)):
+        #     cv2.imshow("img_{}".format(i), gt_batch[i, :, :, :])
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+
 
 
         # 7) View the exact parts of each image at this point

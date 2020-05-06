@@ -4,6 +4,7 @@ import glob
 import shutil
 import image_slicer
 import cv2
+import numpy as np
 from utils import automkdir
 
 
@@ -103,3 +104,37 @@ def resize_imgs_truth(path, scale=0.5, name='resize', img_format='png'):
             # print(filename)
         print('Successfully resized {} images by a scale of {} at {}'.format(len(imgs), scale, save_path))
     return print('Resize images concluded')
+
+def resize_img(img_path, scale=0.5):
+    original = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    print("original shape: {}".format(original.shape))
+    modified = cv2.resize(original, (0,0), fx=scale, fy=scale)
+    print("modified shape: {}".format(modified.shape))
+    # cv2.imshow('Original', original)
+    # cv2.imshow('Modified', modified)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    return modified
+
+def tile_img(img_path):
+    img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+    print("original shape: {}".format(img.shape))
+    height = img.shape[0]
+    width = img.shape[1]
+    cropped_img_1 = img[0:height // 2, 0:width//2]
+    cropped_img_2 = img[height // 2:height, 0:width // 2]
+    cropped_img_3 = img[0:height // 2, width // 2:width]
+    cropped_img_4 = img[height // 2:height, width // 2:width]
+    print("Tiled shape: {}".format(cropped_img_1.shape))
+    # cv2.imshow("original", img)
+    # cv2.imshow("Crop1", cropped_img_1)
+    # cv2.imshow("Crop2", cropped_img_2)
+    # cv2.imshow("Crop3", cropped_img_3)
+    # cv2.imshow("Crop4", cropped_img_4)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    batch = np.stack((cropped_img_1, cropped_img_2, cropped_img_3, cropped_img_4), axis=0)
+    print("Tiled batch shape: {}".format(batch.shape))
+
+    return batch
+

@@ -8,6 +8,7 @@ import random
 import numpy as np
 from PIL import Image
 import scipy
+import cv2
 import json
 import time
 from tensorflow.python.layers.convolutional import Conv2D, conv2d
@@ -28,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'DELETE_TEST'
+NAME = 'HYPOTHESIS_DELETE'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
@@ -176,6 +177,7 @@ class PFNL(VSR):
         # Charbonnier Loss Function (differentiable variant of L1 norm)
         # epsilon is empirically set to 10e-3 (error in code?)
         loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
+
         # Evaluate mean squared error
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
         self.loss, self.eval_mse = loss, eval_mse
@@ -210,16 +212,69 @@ class PFNL(VSR):
             max_frame = len(gtlist)
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
-                index = np.array([i for i in range(idx0 - (self.num_frames+3) + 1, idx0 + 1)])
+                # index = np.array([i for i in range(idx0 - (self.num_frames+3) + 1, idx0 + 1)])
+                index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
                 print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
                 print("Index: {}".format(index))
-                gt = [cv2_imread(gtlist[i]) for i in index]
-                gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
-                batch_gt.append(np.stack(gt, axis=0))
+                # gt = [cv2_imread(gtlist[i]) for i in index]
+                # Tiling the previous image
+                gt_prev = cv2_imread(gtlist[index[0]])
+                height = gt_prev.shape[0]
+                width = gt_prev.shape[1]
+                cropped_img_1 = gt_prev[0:height // 2, 0:width // 2]
+                # print("cropped image shape: {}".format(cropped_img_1.shape))
+                cropped_img_2 = gt_prev[height // 2:height, 0:width // 2]
+                cropped_img_3 = gt_prev[0:height // 2, width // 2:width]
+                cropped_img_4 = gt_prev[height // 2:height, width // 2:width]
+                # Resizing the current reference frame
+                gt_cur = cv2_imread(gtlist[index[1]])
+                gt_cur = cv2.resize(gt_cur, (width // 2, height // 2), interpolation=cv2.INTER_AREA)
+                # cv2.imshow("Crop1", cropped_img_1)
+                # cv2.imshow("Crop2", cropped_img_2)
+                # cv2.imshow("Crop3", cropped_img_3)
+                # cv2.imshow("Crop4", cropped_img_4)
+                # cv2.imshow("next", gt_cur)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
+                cropped_1 = cropped_img_1[height//2 - out_h:height//2, width//2 - out_w:width//2, :].astype(np.float32)/255.0
+                cropped_2 = cropped_img_2[0:out_h, width // 2 - out_w:width // 2, :].astype(np.float32) / 255.0
+                cropped_3 = cropped_img_3[height // 2 - out_h:height // 2, 0:out_w, :].astype(np.float32) / 255.0
+                cropped_4 = cropped_img_4[0:out_h, 0:out_w, :].astype(np.float32) / 255.0
+                # cropped_1 = cropped_img_1[height//2-out_h:height// 2, width // 2-out_w:width // 2, :].astype(np.float32) / 255.0
+                # print("cropped 1 image shape: {}".format(cropped_1.shape))
+                # cropped_2 = cropped_img_2[0:out_h, width//2-out_w:width//2, :].astype(np.float32) / 255.0
+                # print("cropped 2 image shape: {}".format(cropped_2.shape))
+                # cropped_3 = cropped_img_3[height//2-out_h:height//2, 0:out_w, :].astype(np.float32) / 255.0
+                # print("cropped 3 image shape: {}".format(cropped_3.shape))
+                # cropped_4 = cropped_img_4[0:out_h, 0:out_w, :].astype(np.float32) / 255.0
+                # print("cropped 4 image shape: {}".format(cropped_4.shape))
+                #
+                # cv2.imshow("myCrop1", cropped_1)
+                # cv2.imshow("myCrop2", cropped_2)
+                # cv2.imshow("myCrop3", cropped_3)
+                # cv2.imshow("myCrop4", cropped_4)
+
+                # cropped_img_1 = cropped_img_1[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
+                # cropped_img_2 = cropped_img_2[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
+                # cropped_img_3 = cropped_img_3[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
+                # cropped_img_4 = cropped_img_4[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
+                gt_cur = gt_cur[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
+                # cv2.imshow("Crop1", cropped_img_1)
+                # cv2.imshow("Crop2", cropped_img_2)
+                # cv2.imshow("Crop3", cropped_img_3)
+                # cv2.imshow("Crop4", cropped_img_4)
+                # cv2.imshow("next", gt_cur)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
+                print("gt_cur image shape: {}".format(gt_cur.shape))
+                batch_gt.append(np.stack((cropped_1, cropped_2, cropped_3, cropped_4, gt_cur), axis=0))
+
+                # gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
+                # batch_gt.append(np.stack(gt, axis=0))
                 # print("batch_gt shape: {}".format(batch_gt))
-                print('length of gtlist: {}'.format(len(gtlist)))
-                print("length of gt: {}".format(len(gt)))
+                # print('length of gtlist: {}'.format(len(gtlist)))
+                # print("length of gt: {}".format(len(gt)))
 
 
                 if len(batch_gt) == self.eval_basz:
@@ -252,8 +307,9 @@ class PFNL(VSR):
         return mse_avg.tolist(), psnr_avg.tolist()
 
     def train(self):
+        LR, HR = self.hypothesis_pipeline()
         print("Training begin")
-        LR, HR = self.single_input_producer()
+        # LR, HR = self.single_input_producer()
         LR = tf.expand_dims(LR, 0)
         HR = tf.expand_dims(HR, 0)
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
@@ -303,7 +359,7 @@ class PFNL(VSR):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-            if (time.time() - start_time) > 5 and step % 500 == 0:
+            if (time.time() - start_time) > 5 and step % 40 == 0:
                 print("Saving checkpoint")
                 # if step > gs:
                 #     self.save(sess, self.save_dir, step)

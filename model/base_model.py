@@ -39,6 +39,50 @@ class VSR(object):
         self.log_dir = './eval_log.txt'
 
     def hypothesis_pipeline(self):
+        def prepprocessing(gt=None):
+            # number of frames, width, height and channels
+            n, w, h, c = gt.shape
+            print("num_frames: {}, width: {}, height: {}, channels: {}".format(n, w, h, c))
+            # Retrieve the width, height and channels from the ground-truth
+            sp = tf.shape(gt)[1:]
+            print("sp: {}".format(sp))
+            # Convert square to int32
+            size = tf.convert_to_tensor([self.gt_size, self.gt_size, c], dtype=tf.int32)
+            print("Size: {}".format(size))
+
+            limit = sp - size + 1
+            print("limit: {}".format(limit))
+            # Offset contains random values from a uniform distribution after taking the modulo with limit
+            offset = tf.random_uniform(sp.shape, dtype=size.dtype, maxval=size.dtype.max, seed=None) % limit
+            print("offset: {}".format(offset))
+            offset_gt = tf.concat([[0], offset[:2], [0]], axis=-1)
+            print("offset_gt: {}".format(offset_gt))
+            size_gt = tf.concat([[n], size], axis=-1)
+            print("size_gt: {}".format(size_gt))
+
+            gt = tf.slice(gt, offset_gt, size_gt)
+            print("gt tf.slice: {}".format(gt))
+            gt = tf.cast(gt, tf.float32) / 255.
+            print("gt tf.cast: {}".format(gt))
+            # Data augmentation scheme with random flip and rotations
+            flip = tf.random_uniform((1, 3), minval=0.0, maxval=1.0, dtype=tf.float32, seed=None, name=None)
+            gt = tf.where(flip[0][0] < 0.5, gt, gt[:, ::-1])
+            print("gt flip[0][0]: {}".format(gt))
+            gt = tf.where(flip[0][1] < 0.5, gt, gt[:, :, ::-1])
+            print("gt flip[0][1]: {}".format(gt))
+            gt = tf.where(flip[0][2] < 0.5, gt, tf.transpose(gt, perm=(0, 2, 1, 3)))
+            print("gt flip[0][2]: {}".format(gt))
+            inp = DownSample_4D(gt, BLUR, scale=self.scale)
+            print("inp: {}".format(inp))
+            gt = gt[n // 2:n // 2 + 1, :, :, :]
+            print("gt: {}".format(gt))
+
+            # inp.set_shape([self.num_frames, self.in_size, self.in_size, 3])
+            inp.set_shape([self.num_frames + 3, self.in_size, self.in_size, 3])
+            gt.set_shape([1, self.in_size * self.scale, self.in_size * self.scale, 3])
+            print('Input producer shapes: LR: {}, HR: {}'.format(inp.get_shape(), gt.get_shape()))
+
+            return inp, gt
         # Retrieve paths to all training files and then shuffle
         print("Reading training directory")
         pathlist = open(self.train_dir, 'rt').read().splitlines()
@@ -77,14 +121,12 @@ class VSR(object):
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
+        # Call original pre-processing function for data augmentation, flip and resizing
 
+        input, gt = prepprocessing(gt_batch)
 
+        return input, gt
 
-        # 7) View the exact parts of each image at this point
-
-        # 8) Perform the remainder of data augmentation...
-
-        # return batch...
 
     def frvsr_input_producer(self):
         def read_data():

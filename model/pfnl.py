@@ -28,7 +28,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_LR'
+NAME = 'Null_Hypothesis_20200508'
 
 # Class holding all of the PFNL functions
 class PFNL(VSR):
@@ -212,7 +212,7 @@ class PFNL(VSR):
             for idx0 in range(center, max_frame, 32):
                 print("idx0: {}".format(idx0))
                 index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
-                print("Index: {}".format(index))
+                # print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
                 print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
@@ -255,6 +255,7 @@ class PFNL(VSR):
     def train(self):
         print("Training begin")
         LR, HR = self.single_input_producer()
+
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)
         self.global_step = global_step
@@ -279,6 +280,7 @@ class PFNL(VSR):
         sess = tf.Session(config=config)
         # sess=tf.Session()
         self.sess = sess
+
         # Output tensors and metadata obtained when executing a session
         sess.run(tf.global_variables_initializer())
         # Save class adds the ability to save and restore variables to and from checkpoints

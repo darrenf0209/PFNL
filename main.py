@@ -1,6 +1,8 @@
 import os
 from model.alternative import PFNL_alternative
 from model.alternative import NAME
+from model.null import PFNL_null
+from model.null import NAME
 import time
 from utilities.pre_processing import resize_imgs_truth
 from utilities.pre_processing import *
@@ -14,6 +16,7 @@ if __name__=='__main__':
     # slice_imgs_truth(path='test\\vid4\\', use='first', num_tiles=4, copy_original=True, name='DELETE_TRIAL')
     # copy_to_loc(path='test\\vid4\\', stop=2, name="DELETE_AGAIN")
     model = PFNL_alternative()
+    model = PFNL_null()
     # print('Model loaded!')
     model.train()
     # print('Training finished')

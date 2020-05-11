@@ -28,7 +28,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'Null_Hypothesis_20200508'
+NAME = 'Null_Hypothesis_20200511'
 
 # Class holding all of the PFNL functions
 class PFNL_null(VSR):
@@ -254,7 +254,7 @@ class PFNL_null(VSR):
 
     def train(self):
         print("Training begin")
-        LR, HR = self.single_input_producer()
+        LR, HR = self.null_pipeline()
 
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)

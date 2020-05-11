@@ -8,10 +8,7 @@ import random
 import numpy as np
 from PIL import Image
 import scipy
-<<<<<<< HEAD:model/alternative.py
 import cv2
-=======
->>>>>>> hypothesis:model/null.py
 import json
 import time
 from tensorflow.python.layers.convolutional import Conv2D, conv2d
@@ -32,17 +29,10 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-<<<<<<< HEAD:model/alternative.py
-NAME = 'HYPOTHESIS_DELETE'
-
-# Class holding all of the PFNL functions
-class PFNL_alternative(VSR):
-=======
 NAME = 'Null_Hypothesis_20200511'
 
 # Class holding all of the PFNL functions
 class PFNL_null(VSR):
->>>>>>> hypothesis:model/null.py
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
@@ -110,11 +100,7 @@ class PFNL_null(VSR):
             inp1 = tf.space_to_depth(inp0, 2)
             # print("Re-arrange spatial data into depth inp1:{}".format(inp1))
             # Non Local Resblock
-<<<<<<< HEAD:model/alternative.py
-            inp1 = NonLocalBlock(inp1, int(c) * (self.num_frames+3) * 4, sub_sample=1, nltype=1,
-=======
             inp1 = NonLocalBlock(inp1, int(c) * self.num_frames * 4, sub_sample=1, nltype=1,
->>>>>>> hypothesis:model/null.py
                                  scope='nlblock_{}'.format(0))
             # print("NLRB Output inp1:{}".format(inp1))
             inp1 = tf.depth_to_space(inp1, 2)
@@ -122,11 +108,7 @@ class PFNL_null(VSR):
             # Concatenation
             inp0 += inp1
             # print("inp0+=inp1: {}".format(inp0))
-<<<<<<< HEAD:model/alternative.py
-            inp0 = tf.split(inp0, num_or_size_splits=(self.num_frames+3), axis=-1)
-=======
             inp0 = tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
->>>>>>> hypothesis:model/null.py
             # print("inp0 split: {}".format(inp0))
             # 5x5 convolutional step, before entering the PFRB
             inp0 = [conv0(f) for f in inp0]
@@ -186,25 +168,15 @@ class PFNL_null(VSR):
         # H is the corresponding HR centre frame
         H = tf.placeholder(tf.float32, shape=[None, 1, None, None, 3], name='H_truth')
         # I is L_train, representing the input LR frames
-<<<<<<< HEAD:model/alternative.py
-        L_train = tf.placeholder(tf.float32, shape=[self.batch_size, (self.num_frames+3), self.in_size, self.in_size, 3],
-                                 name='L_train')
-        L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, (self.num_frames+3), in_h, in_w, 3], name='L_eval')
-=======
         L_train = tf.placeholder(tf.float32, shape=[self.batch_size, self.num_frames, self.in_size, self.in_size, 3],
                                  name='L_train')
         L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, self.num_frames, in_h, in_w, 3], name='L_eval')
->>>>>>> hypothesis:model/null.py
         # SR denotes the function of the super-resolution network
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
         # epsilon is empirically set to 10e-3 (error in code?)
         loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
-<<<<<<< HEAD:model/alternative.py
-
-=======
->>>>>>> hypothesis:model/null.py
         # Evaluate mean squared error
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
         self.loss, self.eval_mse = loss, eval_mse
@@ -224,21 +196,13 @@ class PFNL_null(VSR):
         out_w = in_w * self.scale  # 960
         bd = border // self.scale
 
-<<<<<<< HEAD:model/alternative.py
-        eval_gt = tf.placeholder(tf.float32, [None, (self.num_frames+3), out_h, out_w, 3])
-=======
         eval_gt = tf.placeholder(tf.float32, [None, self.num_frames, out_h, out_w, 3])
->>>>>>> hypothesis:model/null.py
         eval_inp = DownSample(eval_gt, BLUR, scale=self.scale)
         print("eval_inp: {}".format(eval_inp))
 
         filenames = open(self.eval_dir, 'rt').read().splitlines()  # sorted(glob.glob(join(self.eval_dir,'*')))
         # print("Filenames: {}".format(filenames))
-<<<<<<< HEAD:model/alternative.py
-        gt_list = [sorted(glob.glob(join(f, 'truth', '*.png'))) for f in filenames]
-=======
         gt_list = [sorted(glob.glob(join(f, 'truth_downsize_2', '*.png'))) for f in filenames]
->>>>>>> hypothesis:model/null.py
         center = 15
         batch_gt = []
         batch_cnt = 0
@@ -247,72 +211,10 @@ class PFNL_null(VSR):
             max_frame = len(gtlist)
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
-<<<<<<< HEAD:model/alternative.py
-                # index = np.array([i for i in range(idx0 - (self.num_frames+3) + 1, idx0 + 1)])
-=======
-                print("idx0: {}".format(idx0))
->>>>>>> hypothesis:model/null.py
                 index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
                 # print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
                 print("Index: {}".format(index))
-<<<<<<< HEAD:model/alternative.py
-                # gt = [cv2_imread(gtlist[i]) for i in index]
-                # Tiling the previous image
-                gt_prev = cv2_imread(gtlist[index[0]])
-                height = gt_prev.shape[0]
-                width = gt_prev.shape[1]
-                cropped_img_1 = gt_prev[0:height // 2, 0:width // 2]
-                cropped_img_2 = gt_prev[height // 2:height, 0:width // 2]
-                cropped_img_3 = gt_prev[0:height // 2, width // 2:width]
-                cropped_img_4 = gt_prev[height // 2:height, width // 2:width]
-                # print("cropped image shape: {}".format(cropped_img_1.shape))
-
-                # Resizing the current reference frame
-                gt_cur = cv2_imread(gtlist[index[1]])
-                gt_cur = cv2.resize(gt_cur, (width // 2, height // 2), interpolation=cv2.INTER_AREA)
-                # cv2.imshow("Crop1", cropped_img_1)
-                # cv2.imshow("Crop2", cropped_img_2)
-                # cv2.imshow("Crop3", cropped_img_3)
-                # cv2.imshow("Crop4", cropped_img_4)
-                # cv2.imshow("next", gt_cur)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
-                cropped_1 = cropped_img_1[height//2 - out_h:height//2, width//2 - out_w:width//2, :].astype(np.float32)/255.0
-                cropped_2 = cropped_img_2[0:out_h, width // 2 - out_w:width // 2, :].astype(np.float32) / 255.0
-                cropped_3 = cropped_img_3[height // 2 - out_h:height // 2, 0:out_w, :].astype(np.float32) / 255.0
-                cropped_4 = cropped_img_4[0:out_h, 0:out_w, :].astype(np.float32) / 255.0
-
-                # cv2.imshow("myCrop1", cropped_1)
-                # cv2.imshow("myCrop2", cropped_2)
-                # cv2.imshow("myCrop3", cropped_3)
-                # cv2.imshow("myCrop4", cropped_4)
-
-                # Original cropping done by authors
-                # cropped_img_1 = cropped_img_1[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
-                # cropped_img_2 = cropped_img_2[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
-                # cropped_img_3 = cropped_img_3[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
-                # cropped_img_4 = cropped_img_4[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
-
-                gt_cur = gt_cur[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
-                # print("gt_cur image shape: {}".format(gt_cur.shape))
-
-                # cv2.imshow("Crop1", cropped_img_1)
-                # cv2.imshow("Crop2", cropped_img_2)
-                # cv2.imshow("Crop3", cropped_img_3)
-                # cv2.imshow("Crop4", cropped_img_4)
-                # cv2.imshow("next", gt_cur)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
-
-                batch_gt.append(np.stack((cropped_1, cropped_2, cropped_3, cropped_4, gt_cur), axis=0))
-
-                # gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
-                # batch_gt.append(np.stack(gt, axis=0))
-                # print("batch_gt shape: {}".format(batch_gt))
-                # print('length of gtlist: {}'.format(len(gtlist)))
-                # print("length of gt: {}".format(len(gt)))
-=======
                 gt = [cv2_imread(gtlist[i]) for i in index]
                 gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
                 batch_gt.append(np.stack(gt, axis=0))
@@ -320,19 +222,13 @@ class PFNL_null(VSR):
                 print('length of gtlist: {}'.format(len(gtlist)))
                 print("length of gt: {}".format(len(gt)))
 
->>>>>>> hypothesis:model/null.py
-
                 if len(batch_gt) == self.eval_basz:
                     batch_gt = np.stack(batch_gt, 0)
                     # print("batch_gt: {}".format(batch_gt))
                     batch_lr = sess.run(eval_inp, feed_dict={eval_gt: batch_gt})
                     mse_val = sess.run(self.eval_mse,
                                        feed_dict={self.L_eval: batch_lr,
-<<<<<<< HEAD:model/alternative.py
-                                                  self.H: batch_gt[:, (self.num_frames+3) // 2:(self.num_frames+3) // 2 + 1]})
-=======
                                                   self.H: batch_gt[:, self.num_frames // 2:self.num_frames // 2 + 1]})
->>>>>>> hypothesis:model/null.py
                     # print("Batch LR {}".format(batch_lr))
                     # print("Batch gt {}".format(batch_gt))
                     # print("MSE Value: {}".format(mse_val))
@@ -356,17 +252,9 @@ class PFNL_null(VSR):
         return mse_avg.tolist(), psnr_avg.tolist()
 
     def train(self):
-<<<<<<< HEAD:model/alternative.py
-        LR, HR = self.tiled_pipeline()
-        print("Training begin")
-        # LR, HR = self.single_input_producer()
-        print("From pipeline: LR: {}, HR: {}".format(LR, HR))
-=======
         print("Training begin")
         LR, HR = self.null_pipeline()
-
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
->>>>>>> hypothesis:model/null.py
         global_step = tf.Variable(initial_value=0, trainable=False)
         self.global_step = global_step
         print("Global step: {}".format(global_step))
@@ -390,10 +278,6 @@ class PFNL_null(VSR):
         sess = tf.Session(config=config)
         # sess=tf.Session()
         self.sess = sess
-<<<<<<< HEAD:model/alternative.py
-=======
-
->>>>>>> hypothesis:model/null.py
         # Output tensors and metadata obtained when executing a session
         sess.run(tf.global_variables_initializer())
         # Save class adds the ability to save and restore variables to and from checkpoints
@@ -409,28 +293,15 @@ class PFNL_null(VSR):
 
         # Begin timing the training
         start_time = time.time()
-<<<<<<< HEAD:model/alternative.py
-        gs = sess.run(global_step)
-        print("Current Global Step: {}".format(gs))
-=======
-        print("start time: {}".format(start_time))
+        # print("start time: {}".format(start_time))
         gs = sess.run(global_step)
         print("gs: {}".format(gs))
->>>>>>> hypothesis:model/null.py
         losses = []
         for step in range(sess.run(global_step), self.max_step):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-<<<<<<< HEAD:model/alternative.py
-                LR, HR = self.tiled_pipeline()
-
-
             if (time.time() - start_time) > 5 and step % 500 == 0:
-
-=======
-            if (time.time() - start_time) > 5 and step % 500 == 0:
->>>>>>> hypothesis:model/null.py
                 print("Saving checkpoint")
                 # if step > gs:
                 #     self.save(sess, self.save_dir, step)
@@ -462,16 +333,8 @@ class PFNL_null(VSR):
                 start_time = time.time()
                 print("Timing restarted")
 
-<<<<<<< HEAD:model/alternative.py
-
-
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
-            # _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: LR, self.H: HR})
-=======
-            lr1, hr = sess.run([LR, HR])
-            _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
->>>>>>> hypothesis:model/null.py
 
             if step > 500 and loss_v > 10:
                 print('Model collapsed with loss={}'.format(loss_v))
@@ -505,11 +368,7 @@ class PFNL_null(VSR):
 
         h, w, c = imgs[0].shape
 
-<<<<<<< HEAD:model/alternative.py
-        L_test = tf.placeholder(tf.float32, shape=[num_once, (self.num_frames+3), h // self.scale, w // self.scale, 3],
-=======
         L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h // self.scale, w // self.scale, 3],
->>>>>>> hypothesis:model/null.py
                                 name='L_test')
         SR_test = self.forward(L_test)
         if not reuse:
@@ -528,17 +387,11 @@ class PFNL_null(VSR):
             self.load(sess, self.save_dir)
         run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
         lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: imgs}, options=run_options)
-
         lr_list = []
         max_frame = lrs.shape[0]
-<<<<<<< HEAD:model/alternative.py
-        for i in range(max_frame):
-            index = np.array([i for i in range(i - (self.num_frames+3) + 1, i + 1)])
-=======
         frames_foregone = 5
         for i in range(frames_foregone, max_frame - frames_foregone):
             index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
->>>>>>> hypothesis:model/null.py
             # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
@@ -550,11 +403,7 @@ class PFNL_null(VSR):
         h, w, c = lrs.shape[1:]
 
         all_time = []
-<<<<<<< HEAD:model/alternative.py
-        for i in trange(part):
-=======
         for i in trange(part - 2*frames_foregone):
->>>>>>> hypothesis:model/null.py
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
@@ -565,11 +414,7 @@ class PFNL_null(VSR):
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
                 # Name of saved file. This should match the 'truth' format for easier analysis in future.
-<<<<<<< HEAD:model/alternative.py
-                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i * num_once + j + 1)), img)
-=======
                 cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i * num_once + j + 1)), img)
->>>>>>> hypothesis:model/null.py
         all_time = np.array(all_time)
         if max_frame > 0:
             all_time = np.array(all_time)
@@ -604,11 +449,7 @@ class PFNL_null(VSR):
 
         h, w, c = lrs[0].shape
 
-<<<<<<< HEAD:model/alternative.py
-        L_test = tf.placeholder(tf.float32, shape=[num_once, (self.num_frames+3), h, w, 3], name='L_test')
-=======
         L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h, w, 3], name='L_test')
->>>>>>> hypothesis:model/null.py
         SR_test = self.forward(L_test)
         if not reuse:
             config = tf.ConfigProto()
@@ -622,14 +463,9 @@ class PFNL_null(VSR):
 
         lr_list = []
         max_frame = lrs.shape[0]
-<<<<<<< HEAD:model/alternative.py
-        for i in range(max_frame):
-            index = np.array([i for i in range(i - (self.num_frames+3) + 1, i + 1)])
-=======
         frames_foregone = 5
         for i in range(frames_foregone, max_frame - frames_foregone):
             index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
->>>>>>> hypothesis:model/null.py
             print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
@@ -641,11 +477,7 @@ class PFNL_null(VSR):
         h, w, c = lrs.shape[1:]
 
         all_time = []
-<<<<<<< HEAD:model/alternative.py
-        for i in trange(part):
-=======
         for i in trange(part - 2*frames_foregone):
->>>>>>> hypothesis:model/null.py
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
@@ -655,11 +487,7 @@ class PFNL_null(VSR):
                 img = sr[j][0] * 255.
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
-<<<<<<< HEAD:model/alternative.py
-                cv2_imsave(join(save_path, '{:0>4}.png'.format(i * num_once + j)), img)
-=======
                 cv2_imsave(join(save_path, '{:0>4}.png'.format(frames_foregone + i * num_once + j)), img)
->>>>>>> hypothesis:model/null.py
 
         all_time = np.array(all_time)
         if max_frame > 0:
@@ -688,10 +516,6 @@ class PFNL_null(VSR):
 
 
 if __name__ == '__main__':
-<<<<<<< HEAD:model/alternative.py
-    model = PFNL_alternative()
-=======
     model = PFNL_null()
->>>>>>> hypothesis:model/null.py
     model.train()
     model.testvideos()

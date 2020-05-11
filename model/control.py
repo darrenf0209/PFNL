@@ -264,9 +264,9 @@ class PFNL_control(VSR):
 
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
         # TF configures the session
-        log_dir = os.path.join("logs_tb", time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
-        automkdir(log_dir)
-        summary_writer = tf.summary.FileWriter(logdir=log_dir)
+        # log_dir = os.path.join("logs_tb", time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
+        # automkdir(log_dir)
+        # summary_writer = tf.summary.FileWriter(logdir=log_dir)
         config = tf.ConfigProto()
         # Attempt to allocate only as much GPU memory based on runtime allocations
         # Allocatee little memory, and as Sessions continues to run, more GPU memory is provided
@@ -333,7 +333,7 @@ class PFNL_control(VSR):
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
 
-            sess.run(tf.summary.scalar('loss', loss_v))
+            # sess.run(tf.summary.scalar('loss', loss_v))
 
             if step > 500 and loss_v > 10:
                 print('Model collapsed with loss={}'.format(loss_v))

@@ -29,14 +29,14 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_7'
+NAME = 'LR_test_Delete'
 
 # Class holding all of the PFNL functions
 class PFNL_control(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
-        self.num_frames = 7
+        self.num_frames = 3
         self.scale = 2
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
@@ -263,8 +263,10 @@ class PFNL_control(VSR):
         # print('Params num of all:',get_num_params(vars_all))
 
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
-
         # TF configures the session
+        log_dir = os.path.join("logs_tb", time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
+        automkdir(log_dir)
+        summary_writer = tf.summary.FileWriter(logdir=log_dir)
         config = tf.ConfigProto()
         # Attempt to allocate only as much GPU memory based on runtime allocations
         # Allocatee little memory, and as Sessions continues to run, more GPU memory is provided
@@ -327,8 +329,11 @@ class PFNL_control(VSR):
                 start_time = time.time()
                 print("Timing restarted")
 
+
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
+
+            sess.run(tf.summary.scalar('loss', loss_v))
 
             if step > 500 and loss_v > 10:
                 print('Model collapsed with loss={}'.format(loss_v))

@@ -1,6 +1,10 @@
 import os
 from model.control import PFNL_control
 from model.control import NAME
+from model.alternative import PFNL_alternative
+from model.alternative import NAME
+from model.null import PFNL_null
+from model.null import NAME
 import time
 from utilities.pre_processing import resize_imgs_truth
 from utilities.pre_processing import *
@@ -15,8 +19,11 @@ if __name__=='__main__':
     # copy_to_loc(path='test\\vid4\\', stop=2, name="DELETE_AGAIN")
     model = PFNL_control()
     print('Model loaded!')
+    model = PFNL_alternative()
+    model = PFNL_null()
+    # print('Model loaded!')
     model.train()
-    print('Training finished')
+    # print('Training finished')
     # model.testvideos('test\\udm10\\', name='{}_best_{}'.format(NAME, int(time.time())))
-    # model.testvideos('test\\vid4\\', name='LR_TEST_{}_{}'.format(NAME, int(time.time())))
+    # model.testvideos('test\\vid4\\', name='LR_LR_DELETE_{}_{}'.format(NAME, int(time.time())))
     # print('Finished')

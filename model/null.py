@@ -8,13 +8,10 @@ import random
 import numpy as np
 from PIL import Image
 import scipy
-<<<<<<< HEAD:model/control.py
-=======
 <<<<<<< HEAD:model/alternative.py
 import cv2
 =======
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
 import json
 import time
 from tensorflow.python.layers.convolutional import Conv2D, conv2d
@@ -35,16 +32,6 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-<<<<<<< HEAD:model/control.py
-NAME = 'LR_7'
-
-# Class holding all of the PFNL functions
-class PFNL_control(VSR):
-    def __init__(self):
-        # Initialize variables with respect to images, training, evaluating and directory locations
-        # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
-        self.num_frames = 7
-=======
 <<<<<<< HEAD:model/alternative.py
 NAME = 'HYPOTHESIS_DELETE'
 
@@ -60,18 +47,12 @@ class PFNL_null(VSR):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
         self.num_frames = 2
->>>>>>> hypothesis_slice:model/alternative.py
         self.scale = 2
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
         self.eval_in_size = [128, 240]
-<<<<<<< HEAD:model/control.py
-        self.batch_size = 4
-        self.eval_basz = 4
-=======
         self.batch_size = 1
         self.eval_basz = 1
->>>>>>> hypothesis_slice:model/alternative.py
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate = 0.4e-3
         self.end_lr = 1e-4
@@ -129,15 +110,11 @@ class PFNL_null(VSR):
             inp1 = tf.space_to_depth(inp0, 2)
             # print("Re-arrange spatial data into depth inp1:{}".format(inp1))
             # Non Local Resblock
-<<<<<<< HEAD:model/control.py
-            inp1 = NonLocalBlock(inp1, int(c) * self.num_frames * 4, sub_sample=1, nltype=1,
-=======
 <<<<<<< HEAD:model/alternative.py
             inp1 = NonLocalBlock(inp1, int(c) * (self.num_frames+3) * 4, sub_sample=1, nltype=1,
 =======
             inp1 = NonLocalBlock(inp1, int(c) * self.num_frames * 4, sub_sample=1, nltype=1,
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
                                  scope='nlblock_{}'.format(0))
             # print("NLRB Output inp1:{}".format(inp1))
             inp1 = tf.depth_to_space(inp1, 2)
@@ -145,27 +122,17 @@ class PFNL_null(VSR):
             # Concatenation
             inp0 += inp1
             # print("inp0+=inp1: {}".format(inp0))
-<<<<<<< HEAD:model/control.py
-            inp0 = tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
-=======
 <<<<<<< HEAD:model/alternative.py
             inp0 = tf.split(inp0, num_or_size_splits=(self.num_frames+3), axis=-1)
 =======
             inp0 = tf.split(inp0, num_or_size_splits=self.num_frames, axis=-1)
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
             # print("inp0 split: {}".format(inp0))
             # 5x5 convolutional step, before entering the PFRB
             inp0 = [conv0(f) for f in inp0]
             # print("inp0 conv0: {}".format(inp0))
-<<<<<<< HEAD:model/control.py
-            # Only resizing the shape
-            bic = tf.image.resize_images(x[:, self.num_frames // 2, :, :, :], [w * self.scale, h * self.scale],
-                                         method=2)
-=======
             # Last frame is the current frame (causal system)
             bic = tf.image.resize_images(x[:, -1, :, :, :], [w * self.scale, h * self.scale], method=2)
->>>>>>> hypothesis_slice:model/alternative.py
             # print("bic: {}".format(bic))
 
             # After the 5x5 conv layer, add in the num_blocks of PFRBs to make full extraction of both
@@ -219,11 +186,6 @@ class PFNL_null(VSR):
         # H is the corresponding HR centre frame
         H = tf.placeholder(tf.float32, shape=[None, 1, None, None, 3], name='H_truth')
         # I is L_train, representing the input LR frames
-<<<<<<< HEAD:model/control.py
-        L_train = tf.placeholder(tf.float32, shape=[self.batch_size, self.num_frames, self.in_size, self.in_size, 3],
-                                 name='L_train')
-        L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, self.num_frames, in_h, in_w, 3], name='L_eval')
-=======
 <<<<<<< HEAD:model/alternative.py
         L_train = tf.placeholder(tf.float32, shape=[self.batch_size, (self.num_frames+3), self.in_size, self.in_size, 3],
                                  name='L_train')
@@ -233,20 +195,16 @@ class PFNL_null(VSR):
                                  name='L_train')
         L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, self.num_frames, in_h, in_w, 3], name='L_eval')
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         # SR denotes the function of the super-resolution network
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
         # epsilon is empirically set to 10e-3 (error in code?)
         loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
-<<<<<<< HEAD:model/control.py
-=======
 <<<<<<< HEAD:model/alternative.py
 
 =======
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         # Evaluate mean squared error
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
         self.loss, self.eval_mse = loss, eval_mse
@@ -266,14 +224,6 @@ class PFNL_null(VSR):
         out_w = in_w * self.scale  # 960
         bd = border // self.scale
 
-<<<<<<< HEAD:model/control.py
-        eval_gt = tf.placeholder(tf.float32, [None, self.num_frames, out_h, out_w, 3])
-        eval_inp = DownSample(eval_gt, BLUR, scale=self.scale)
-
-        filenames = open(self.eval_dir, 'rt').read().splitlines()  # sorted(glob.glob(join(self.eval_dir,'*')))
-        # print("Filenames: {}".format(filenames))
-        gt_list = [sorted(glob.glob(join(f, 'truth_downsize_2', '*.png'))) for f in filenames]
-=======
 <<<<<<< HEAD:model/alternative.py
         eval_gt = tf.placeholder(tf.float32, [None, (self.num_frames+3), out_h, out_w, 3])
 =======
@@ -289,7 +239,6 @@ class PFNL_null(VSR):
 =======
         gt_list = [sorted(glob.glob(join(f, 'truth_downsize_2', '*.png'))) for f in filenames]
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         center = 15
         batch_gt = []
         batch_cnt = 0
@@ -298,22 +247,6 @@ class PFNL_null(VSR):
             max_frame = len(gtlist)
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
-<<<<<<< HEAD:model/control.py
-                index = np.array([i for i in range(idx0 - self.num_frames // 2, idx0 + self.num_frames // 2 + 1)])
-                print("Index: {}".format(index))
-                index = np.clip(index, 0, max_frame - 1).tolist()
-                print("Index: {}".format(index))
-                gt = [cv2_imread(gtlist[i]) for i in index]
-                gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
-                batch_gt.append(np.stack(gt, axis=0))
-
-                if len(batch_gt) == self.eval_basz:
-                    batch_gt = np.stack(batch_gt, 0)
-                    batch_lr = sess.run(eval_inp, feed_dict={eval_gt: batch_gt})
-                    mse_val = sess.run(self.eval_mse,
-                                       feed_dict={self.L_eval: batch_lr,
-                                                  self.H: batch_gt[:, self.num_frames // 2:self.num_frames // 2 + 1]})
-=======
 <<<<<<< HEAD:model/alternative.py
                 # index = np.array([i for i in range(idx0 - (self.num_frames+3) + 1, idx0 + 1)])
 =======
@@ -400,7 +333,6 @@ class PFNL_null(VSR):
 =======
                                                   self.H: batch_gt[:, self.num_frames // 2:self.num_frames // 2 + 1]})
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
                     # print("Batch LR {}".format(batch_lr))
                     # print("Batch gt {}".format(batch_gt))
                     # print("MSE Value: {}".format(mse_val))
@@ -424,11 +356,6 @@ class PFNL_null(VSR):
         return mse_avg.tolist(), psnr_avg.tolist()
 
     def train(self):
-<<<<<<< HEAD:model/control.py
-        print("Training begin")
-        LR, HR = self.single_input_producer()
-        print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
-=======
 <<<<<<< HEAD:model/alternative.py
         LR, HR = self.tiled_pipeline()
         print("Training begin")
@@ -440,20 +367,14 @@ class PFNL_null(VSR):
 
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         global_step = tf.Variable(initial_value=0, trainable=False)
         self.global_step = global_step
         print("Global step: {}".format(global_step))
         self.build()
-<<<<<<< HEAD:model/control.py
-        lr = tf.train.polynomial_decay(self.learning_rate, global_step, self.decay_step, end_learning_rate=self.end_lr,
-                                       power=1.)
-=======
         print("Build completed")
         lr = tf.train.polynomial_decay(self.learning_rate, global_step, self.decay_step, end_learning_rate=self.end_lr,
                                        power=1.)
         print("learning rate lr: {}".format(lr))
->>>>>>> hypothesis_slice:model/alternative.py
 
         vars_all = tf.trainable_variables()
         # This print statement throws error: 'int' object has not attribute 'value'
@@ -469,13 +390,10 @@ class PFNL_null(VSR):
         sess = tf.Session(config=config)
         # sess=tf.Session()
         self.sess = sess
-<<<<<<< HEAD:model/control.py
-=======
 <<<<<<< HEAD:model/alternative.py
 =======
 
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         # Output tensors and metadata obtained when executing a session
         sess.run(tf.global_variables_initializer())
         # Save class adds the ability to save and restore variables to and from checkpoints
@@ -491,9 +409,6 @@ class PFNL_null(VSR):
 
         # Begin timing the training
         start_time = time.time()
-<<<<<<< HEAD:model/control.py
-        gs = sess.run(global_step)
-=======
 <<<<<<< HEAD:model/alternative.py
         gs = sess.run(global_step)
         print("Current Global Step: {}".format(gs))
@@ -502,15 +417,11 @@ class PFNL_null(VSR):
         gs = sess.run(global_step)
         print("gs: {}".format(gs))
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         losses = []
         for step in range(sess.run(global_step), self.max_step):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-<<<<<<< HEAD:model/control.py
-            if (time.time() - start_time) > 5 and step % 500 == 0:
-=======
 <<<<<<< HEAD:model/alternative.py
                 LR, HR = self.tiled_pipeline()
 
@@ -521,16 +432,11 @@ class PFNL_null(VSR):
             if (time.time() - start_time) > 5 and step % 500 == 0:
 >>>>>>> hypothesis:model/null.py
                 print("Saving checkpoint")
->>>>>>> hypothesis_slice:model/alternative.py
                 # if step > gs:
                 #     self.save(sess, self.save_dir, step)
                 self.save(sess, self.save_dir, step)
                 training_cost_time = time.time() - start_time
-<<<<<<< HEAD:model/control.py
-                print('cost {}s.'.format(training_cost_time))
-=======
                 print('Training cost time {}s.'.format(training_cost_time))
->>>>>>> hypothesis_slice:model/alternative.py
                 np_losses = np.array(losses)
                 avg_loss = np.mean(np_losses)
                 print("Average Loss from 500 Iterations: {}".format(avg_loss))
@@ -549,20 +455,13 @@ class PFNL_null(VSR):
                 with open(self.log_dir, 'a+') as f:
                     f.write(json.dumps(log_dict))
                     f.write('\n')
-<<<<<<< HEAD:model/control.py
-=======
                 print("Log complete")
 
->>>>>>> hypothesis_slice:model/alternative.py
                 cost_time = time.time() - start_time
                 print('Training and evaluation cost {}s.'.format(cost_time))
                 start_time = time.time()
                 print("Timing restarted")
 
-<<<<<<< HEAD:model/control.py
-            lr1, hr = sess.run([LR, HR])
-            _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
-=======
 <<<<<<< HEAD:model/alternative.py
 
 
@@ -573,7 +472,6 @@ class PFNL_null(VSR):
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
 
             if step > 500 and loss_v > 10:
                 print('Model collapsed with loss={}'.format(loss_v))
@@ -607,24 +505,17 @@ class PFNL_null(VSR):
 
         h, w, c = imgs[0].shape
 
-<<<<<<< HEAD:model/control.py
-        L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h // self.scale, w // self.scale, 3],
-=======
 <<<<<<< HEAD:model/alternative.py
         L_test = tf.placeholder(tf.float32, shape=[num_once, (self.num_frames+3), h // self.scale, w // self.scale, 3],
 =======
         L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h // self.scale, w // self.scale, 3],
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
                                 name='L_test')
         SR_test = self.forward(L_test)
         if not reuse:
             self.img_hr = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='H_truth')
             self.img_lr = DownSample_4D(self.img_hr, BLUR, scale=self.scale)
-<<<<<<< HEAD:model/control.py
-=======
             print("img_lr: {}".format(self.img_lr))
->>>>>>> hypothesis_slice:model/alternative.py
             config = tf.ConfigProto()
             # Allow growth attempts to allocate only as much GPU memory based on runtime allocations
             config.gpu_options.allow_growth = True
@@ -640,11 +531,6 @@ class PFNL_null(VSR):
 
         lr_list = []
         max_frame = lrs.shape[0]
-<<<<<<< HEAD:model/control.py
-        for i in range(max_frame):
-            index = np.array([i for i in range(i - self.num_frames // 2, i + self.num_frames // 2 + 1)])
-            print("index: {}".format(index))
-=======
 <<<<<<< HEAD:model/alternative.py
         for i in range(max_frame):
             index = np.array([i for i in range(i - (self.num_frames+3) + 1, i + 1)])
@@ -654,7 +540,6 @@ class PFNL_null(VSR):
             index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
 >>>>>>> hypothesis:model/null.py
             # print("index: {}".format(index))
->>>>>>> hypothesis_slice:model/alternative.py
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
             lr_list.append(np.array([lrs[j] for j in index]))
@@ -665,15 +550,11 @@ class PFNL_null(VSR):
         h, w, c = lrs.shape[1:]
 
         all_time = []
-<<<<<<< HEAD:model/control.py
-        for i in trange(part):
-=======
 <<<<<<< HEAD:model/alternative.py
         for i in trange(part):
 =======
         for i in trange(part - 2*frames_foregone):
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
@@ -684,15 +565,11 @@ class PFNL_null(VSR):
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
                 # Name of saved file. This should match the 'truth' format for easier analysis in future.
-<<<<<<< HEAD:model/control.py
-                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i * num_once + j + 1)), img)
-=======
 <<<<<<< HEAD:model/alternative.py
                 cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i * num_once + j + 1)), img)
 =======
                 cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i * num_once + j + 1)), img)
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         all_time = np.array(all_time)
         if max_frame > 0:
             all_time = np.array(all_time)
@@ -727,15 +604,11 @@ class PFNL_null(VSR):
 
         h, w, c = lrs[0].shape
 
-<<<<<<< HEAD:model/control.py
-        L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h, w, 3], name='L_test')
-=======
 <<<<<<< HEAD:model/alternative.py
         L_test = tf.placeholder(tf.float32, shape=[num_once, (self.num_frames+3), h, w, 3], name='L_test')
 =======
         L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h, w, 3], name='L_test')
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
         SR_test = self.forward(L_test)
         if not reuse:
             config = tf.ConfigProto()
@@ -749,11 +622,6 @@ class PFNL_null(VSR):
 
         lr_list = []
         max_frame = lrs.shape[0]
-<<<<<<< HEAD:model/control.py
-        for i in range(max_frame):
-            index = np.array([i for i in range(i - self.num_frames // 2, i + self.num_frames // 2 + 1)])
-            index = np.clip(index, 0, max_frame - 1).tolist()
-=======
 <<<<<<< HEAD:model/alternative.py
         for i in range(max_frame):
             index = np.array([i for i in range(i - (self.num_frames+3) + 1, i + 1)])
@@ -765,7 +633,6 @@ class PFNL_null(VSR):
             print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
->>>>>>> hypothesis_slice:model/alternative.py
             lr_list.append(np.array([lrs[j] for j in index]))
         lr_list = np.array(lr_list)
 
@@ -774,15 +641,11 @@ class PFNL_null(VSR):
         h, w, c = lrs.shape[1:]
 
         all_time = []
-<<<<<<< HEAD:model/control.py
-        for i in trange(part):
-=======
 <<<<<<< HEAD:model/alternative.py
         for i in trange(part):
 =======
         for i in trange(part - 2*frames_foregone):
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
@@ -792,15 +655,11 @@ class PFNL_null(VSR):
                 img = sr[j][0] * 255.
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
-<<<<<<< HEAD:model/control.py
-                cv2_imsave(join(save_path, '{:0>4}.png'.format(i * num_once + j)), img)
-=======
 <<<<<<< HEAD:model/alternative.py
                 cv2_imsave(join(save_path, '{:0>4}.png'.format(i * num_once + j)), img)
 =======
                 cv2_imsave(join(save_path, '{:0>4}.png'.format(frames_foregone + i * num_once + j)), img)
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
 
         all_time = np.array(all_time)
         if max_frame > 0:
@@ -829,14 +688,10 @@ class PFNL_null(VSR):
 
 
 if __name__ == '__main__':
-<<<<<<< HEAD:model/control.py
-    model = PFNL_control()
-=======
 <<<<<<< HEAD:model/alternative.py
     model = PFNL_alternative()
 =======
     model = PFNL_null()
 >>>>>>> hypothesis:model/null.py
->>>>>>> hypothesis_slice:model/alternative.py
     model.train()
     model.testvideos()

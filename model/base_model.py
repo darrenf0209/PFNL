@@ -348,19 +348,7 @@ class VSR(object):
                 [tf.image.decode_png(tf.read_file(data_seq[0][i]), channels=3) for i in range(self.num_frames)])
             # gt = tf.stack([tf.image.decode_png(tf.read_file(data_seq[1][i]), channels=3) for i in range(self.num_frames)])
 
-            print("sp: {}".format(tf.shape(gt)[1:]))
-            tiled_img = tf_tile_image(gt, save=False)
-            print("Tiled image shape: {}".format(tf.shape(tiled_img)))
-            # last_image = images[1, :, :, :]
-            # print(last_image)
-            resized_image = tf_resize_image(gt, save=False)
-            print("Resized image shape: {}".format(tf.shape(resized_image)))
-            processed_images = tf.concat([tiled_img, resized_image], 0)
-            # processed_images = tf.stack((tiled_img, resized_image), axis=1)
-            print("Processed image batch: {}".format(tf.shape(processed_images)))
-
-            input, gt = prepprocessing(processed_images)
-            # input, gt = prepprocessing(gt)
+            input, gt = prepprocessing(gt)
 
             return input, gt
 
@@ -403,7 +391,7 @@ class VSR(object):
             print("gt: {}".format(gt))
 
             # inp.set_shape([self.num_frames, self.in_size, self.in_size, 3])
-            inp.set_shape([self.num_frames + 3, self.in_size, self.in_size, 3])
+            inp.set_shape([self.num_frames, self.in_size, self.in_size, 3])
             gt.set_shape([1, self.in_size * self.scale, self.in_size * self.scale, 3])
             print('Input producer shapes: LR: {}, HR: {}'.format(inp.get_shape(), gt.get_shape()))
 
@@ -419,7 +407,7 @@ class VSR(object):
             gtList_all = []
             for dataPath in pathlist:
                 # Retrieve the ground-truth images in the datapath and append to a single list
-                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth/*.png')))
+                gtList = sorted(glob.glob(os.path.join(dataPath, 'truth_downsize_2/*.png')))
                 gtList_all.append(gtList)
             # Convert paths to ground-truth images to tensor strings
             gtList_all = tf.convert_to_tensor(gtList_all, dtype=tf.string)
@@ -432,12 +420,9 @@ class VSR(object):
             input, gt = read_data()
             print("Shape of input: {}".format(input.shape))
             print("Shape of gt: {}".format(gt.shape))
-            # batch_in, batch_gt = tf.train.batch([input, gt], batch_size=self.batch_size, num_threads=3,
-            #                                     capacity=self.batch_size * 2)
-        #     batch_in, batch_gt = tf.train.batch([input, [gt]], batch_size=self.batch_size, num_threads=3,
-        #                                         capacity=5)
-        # return batch_in, batch_gt
-        return input, gt
+            batch_in, batch_gt = tf.train.batch([input, gt], batch_size=self.batch_size, num_threads=3,
+                                                capacity=self.batch_size * 2)
+        return batch_in, batch_gt
 
     def forward(self, x):
         pass

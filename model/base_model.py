@@ -51,7 +51,7 @@ class VSR(object):
                 [tf.image.decode_png(tf.read_file(data_seq[0][i]), channels=3) for i in range(self.num_frames)])
             # gt = tf.stack([tf.image.decode_png(tf.read_file(data_seq[1][i]), channels=3) for i in range(self.num_frames)])
 
-            input, gt = prepprocessing(gt)
+            input, gt = preprocessing(gt)
 
             return input, gt
         

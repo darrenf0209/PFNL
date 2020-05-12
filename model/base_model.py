@@ -122,7 +122,7 @@ class VSR(object):
                                                 capacity=self.batch_size * 2)
         return batch_in, batch_gt
         
-    def tiled_pipeline(self):
+    def hypothesis_pipeline(self):
         def prepprocessing(gt=None):
             # number of frames, width, height and channels
             n, w, h, c = gt.shape

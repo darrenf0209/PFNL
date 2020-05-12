@@ -103,7 +103,7 @@ class VSR(object):
         print("Shuffling the training paths")
         random.shuffle(pathlist)
         # Context manager
-        with tf.variable_scope('trainin'):
+        with tf.variable_scope('training'):
             gtList_all = []
             for dataPath in pathlist:
                 # Retrieve the ground-truth images in the datapath and append to a single list
@@ -122,7 +122,7 @@ class VSR(object):
                                                 capacity=self.batch_size * 2)
         return batch_in, batch_gt
         
-    def hypothesis_pipeline(self):
+    def alternative_pipeline(self):
         def prepprocessing(gt=None):
             # number of frames, width, height and channels
             n, w, h, c = gt.shape
@@ -280,7 +280,7 @@ class VSR(object):
         print("Shuffling the training paths")
         random.shuffle(pathlist)
         # Context manager
-        with tf.variable_scope('trainin'):
+        with tf.variable_scope('training'):
             gtList_all = []
             for dataPath in pathlist:
                 # Retrieve the ground-truth images in the datapath and append to a single list

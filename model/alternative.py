@@ -303,7 +303,7 @@ class PFNL_alternative(VSR):
         return mse_avg.tolist(), psnr_avg.tolist()
 
     def train(self):
-        LR, HR = self.hypothesis_pipeline()
+        LR, HR = self.alternative_pipeline()
         print("Training begin")
         print("From pipeline: LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)
@@ -351,7 +351,7 @@ class PFNL_alternative(VSR):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-                LR, HR = self.hypothesis_pipeline()
+                LR, HR = self.alternative_pipeline()
             if (time.time() - start_time) > 5 and step % 500 == 0:
                 print("Saving checkpoint")
                 # if step > gs:

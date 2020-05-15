@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'Null_Hypothesis_20200511'
+NAME = 'Resize_test_delete'
 
 # Class holding all of the PFNL functions
 class PFNL_null(VSR):
@@ -301,6 +301,7 @@ class PFNL_null(VSR):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
+                LR, HR = self.null_pipeline()
             if (time.time() - start_time) > 5 and step % 500 == 0:
                 print("Saving checkpoint")
                 # if step > gs:

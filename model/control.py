@@ -176,7 +176,7 @@ class PFNL_control(VSR):
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
-        # epsilon is empirically set to 10e-3 (error in code?)
+        # epsilon is empirically set to 10e-3
         loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
         # Evaluate mean squared error
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
@@ -250,7 +250,6 @@ class PFNL_control(VSR):
     def train(self):
         print("Training begin")
         LR, HR = self.single_input_producer()
-        summary_op = tf.summary.image('image', LR)
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)
         self.global_step = global_step

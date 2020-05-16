@@ -440,9 +440,9 @@ class PFNL_alternative(VSR):
 
         lr_list = []
         max_frame = lrs.shape[0]
-
-        for i in range(max_frame):
-            index = np.array([i for i in range(i - (self.num_frames+3) + 1, i + 1)])
+        frames_foregone = 5
+        for i in range(frames_foregone, max_frame - frames_foregone):
+            index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
             # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
@@ -454,7 +454,7 @@ class PFNL_alternative(VSR):
         h, w, c = lrs.shape[1:]
 
         all_time = []
-        for i in trange(part):
+        for i in trange(part - 2*frames_foregone):
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
@@ -465,7 +465,7 @@ class PFNL_alternative(VSR):
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
                 # Name of saved file. This should match the 'truth' format for easier analysis in future.
-                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i * num_once + j + 1)), img)
+                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i * num_once + j + 1)), img)
         all_time = np.array(all_time)
         if max_frame > 0:
             all_time = np.array(all_time)

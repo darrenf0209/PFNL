@@ -29,14 +29,14 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_test_Delete'
+NAME = 'LR_test_Delete_1'
 
 # Class holding all of the PFNL functions
 class PFNL_control(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
-        self.num_frames = 3
+        self.num_frames = 1
         self.scale = 2
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
@@ -250,6 +250,7 @@ class PFNL_control(VSR):
     def train(self):
         print("Training begin")
         LR, HR = self.single_input_producer()
+        summary_op = tf.summary.image('image', LR)
         print("From single_input_producer(): LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)
         self.global_step = global_step
@@ -263,10 +264,8 @@ class PFNL_control(VSR):
         # print('Params num of all:',get_num_params(vars_all))
 
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
-        # TF configures the session
-        # log_dir = os.path.join("logs_tb", time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
-        # automkdir(log_dir)
-        # summary_writer = tf.summary.FileWriter(logdir=log_dir)
+
+        log_dir = "tb_graph\\{}_{}".format(NAME, time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
         config = tf.ConfigProto()
         # Attempt to allocate only as much GPU memory based on runtime allocations
         # Allocatee little memory, and as Sessions continues to run, more GPU memory is provided
@@ -276,6 +275,8 @@ class PFNL_control(VSR):
         self.sess = sess
         # Output tensors and metadata obtained when executing a session
         sess.run(tf.global_variables_initializer())
+        writer = tf.summary.FileWriter(log_dir, sess.graph)
+        writer.close()
         # Save class adds the ability to save and restore variables to and from checkpoints
         # max_to_keep indicates the maximum number of recent checkpoint files to keep (default is 5)
         # keep_checkpoint_every_n_hours here means keep 1 checkpoint every hour of training

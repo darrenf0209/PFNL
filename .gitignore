@@ -18,3 +18,5 @@ __pycachee__
 # Misc
 pfnl.txt
 training_log.txt
+
+/tb_graph/*

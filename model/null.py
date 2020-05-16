@@ -202,7 +202,7 @@ class PFNL_null(VSR):
 
         filenames = open(self.eval_dir, 'rt').read().splitlines()  # sorted(glob.glob(join(self.eval_dir,'*')))
         # print("Filenames: {}".format(filenames))
-        gt_list = [sorted(glob.glob(join(f, 'truth_downsize_2', '*.png'))) for f in filenames]
+        gt_list = [sorted(glob.glob(join(f, 'truth', '*.png'))) for f in filenames]
         center = 15
         batch_gt = []
         batch_cnt = 0
@@ -216,11 +216,16 @@ class PFNL_null(VSR):
                 index = np.clip(index, 0, max_frame - 1).tolist()
                 print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
+                print("Original shape: {}".format(gt[0].shape))
+                # Resizing images by half
+                height = gt[0].shape[0]
+                width = gt[0].shape[1]
+                gt = [cv2.resize(gt[i], (width // 2, height // 2), interpolation=cv2.INTER_AREA) for i in range(len(gt))]
+                print("Modified shape: {}".format(gt[0].shape))
                 gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
+                print("Cropped shape: {}".format(gt[0].shape))
                 batch_gt.append(np.stack(gt, axis=0))
                 # print("batch_gt shape: {}".format(batch_gt))
-                print('length of gtlist: {}'.format(len(gtlist)))
-                print("length of gt: {}".format(len(gt)))
 
                 if len(batch_gt) == self.eval_basz:
                     batch_gt = np.stack(batch_gt, 0)

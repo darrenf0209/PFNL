@@ -333,8 +333,6 @@ class PFNL_control(VSR):
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
 
-            # sess.run(tf.summary.scalar('loss', loss_v))
-
             if step > 500 and loss_v > 10:
                 print('Model collapsed with loss={}'.format(loss_v))
                 break

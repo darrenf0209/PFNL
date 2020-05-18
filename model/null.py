@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'Resize_test_delete'
+NAME = 'null_20200517'
 
 # Class holding all of the PFNL functions
 class PFNL_null(VSR):
@@ -44,7 +44,7 @@ class PFNL_null(VSR):
         self.batch_size = 1
         self.eval_basz = 1
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
-        self.learning_rate = 0.4e-3
+        self.learning_rate = 0.2e-3
         self.end_lr = 1e-4
         self.reload = True
         # Number of iterations for training
@@ -214,16 +214,16 @@ class PFNL_null(VSR):
                 index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
                 # print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
-                print("Index: {}".format(index))
+                # print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
-                print("Original shape: {}".format(gt[0].shape))
+                # print("Original shape: {}".format(gt[0].shape))
                 # Resizing images by half
                 height = gt[0].shape[0]
                 width = gt[0].shape[1]
                 gt = [cv2.resize(gt[i], (width // 2, height // 2), interpolation=cv2.INTER_AREA) for i in range(len(gt))]
-                print("Modified shape: {}".format(gt[0].shape))
+                # print("Modified shape: {}".format(gt[0].shape))
                 gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
-                print("Cropped shape: {}".format(gt[0].shape))
+                # print("Cropped shape: {}".format(gt[0].shape))
                 batch_gt.append(np.stack(gt, axis=0))
                 # print("batch_gt shape: {}".format(batch_gt))
 
@@ -274,11 +274,12 @@ class PFNL_null(VSR):
         # print('Params num of all:',get_num_params(vars_all))
 
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
-
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
         # TF configures the session
-        config = tf.ConfigProto()
+        config = tf.ConfigProto(gpu_options=gpu_options)
         # Attempt to allocate only as much GPU memory based on runtime allocations
         # Allocatee little memory, and as Sessions continues to run, more GPU memory is provided
+
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         # sess=tf.Session()
@@ -306,7 +307,9 @@ class PFNL_null(VSR):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-                LR, HR = self.null_pipeline()
+
+                # LR, HR = self.null_pipeline()
+
             if (time.time() - start_time) > 5 and step % 500 == 0:
                 print("Saving checkpoint")
                 # if step > gs:

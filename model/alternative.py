@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'HYPOTHESIS_DELETE'
+NAME = 'alternative_20200517'
 
 # Class holding all of the PFNL functions
 class PFNL_alternative(VSR):
@@ -44,7 +44,7 @@ class PFNL_alternative(VSR):
         self.batch_size = 1
         self.eval_basz = 1
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
-        self.learning_rate = 0.4e-3
+        self.learning_rate = 0.2e-3
         self.end_lr = 1e-4
         self.reload = True
         # Number of iterations for training
@@ -351,7 +351,7 @@ class PFNL_alternative(VSR):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-                LR, HR = self.alternative_pipeline()
+                # LR, HR = self.alternative_pipeline()
             if (time.time() - start_time) > 5 and step % 500 == 0:
                 print("Saving checkpoint")
                 # if step > gs:

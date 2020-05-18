@@ -193,8 +193,8 @@ class PFNL_control(VSR):
         print('Saved directory: {}'.format(self.save_dir))
         border = 8
         in_h, in_w = self.eval_in_size
-        out_h = in_h * self.scale  # 512
-        out_w = in_w * self.scale  # 960
+        out_h = in_h * self.scale  # 256
+        out_w = in_w * self.scale  # 480
         bd = border // self.scale
 
         eval_gt = tf.placeholder(tf.float32, [None, self.num_frames, out_h, out_w, 3])
@@ -235,7 +235,6 @@ class PFNL_control(VSR):
                     batch_gt = []
                     print('\tEval batch {} - {} ...'.format(batch_cnt, batch_cnt + self.eval_basz))
                     batch_cnt += self.eval_basz
-                    # print("MSE Acc: {}".format(mse_acc))
 
         psnr_acc = 10 * np.log10(1.0 / mse_acc)
         mse_avg = np.mean(mse_acc, axis=0)
@@ -264,6 +263,7 @@ class PFNL_control(VSR):
 
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
 
+        # Tensorboard logging
         log_dir = "tb_graph\\{}_{}".format(NAME, time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
         config = tf.ConfigProto()
         # Attempt to allocate only as much GPU memory based on runtime allocations

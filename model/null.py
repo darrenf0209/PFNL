@@ -192,8 +192,8 @@ class PFNL_null(VSR):
         print('Saved directory: {}'.format(self.save_dir))
         border = 8
         in_h, in_w = self.eval_in_size
-        out_h = in_h * self.scale  # 512
-        out_w = in_w * self.scale  # 960
+        out_h = in_h * self.scale  # 256
+        out_w = in_w * self.scale  # 480
         bd = border // self.scale
 
         eval_gt = tf.placeholder(tf.float32, [None, self.num_frames, out_h, out_w, 3])

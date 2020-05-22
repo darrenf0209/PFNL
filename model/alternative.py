@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'alternative_20200518'
+NAME = 'test_delete'
 
 
 # Class holding all of the PFNL functions
@@ -223,31 +223,26 @@ class PFNL_alternative(VSR):
                 gt_prev = cv2_imread(gtlist[index[0]])
                 height = gt_prev.shape[0]
                 width = gt_prev.shape[1]
-                cropped_img_1 = gt_prev[0:height // 2, 0:width // 2]
-                cropped_img_2 = gt_prev[height // 2:height, 0:width // 2]
-                cropped_img_3 = gt_prev[0:height // 2, width // 2:width]
-                cropped_img_4 = gt_prev[height // 2:height, width // 2:width]
-                # print("cropped image shape: {}".format(cropped_img_1.shape))
+                top_left = gt_prev[0:height // 2, 0:width // 2]
+                bottom_left = gt_prev[height // 2:height, 0:width // 2]
+                top_right = gt_prev[0:height // 2, width // 2:width]
+                bottom_right = gt_prev[height // 2:height, width // 2:width]
+                # print("cropped image shape: {}".format(top_left.shape))
 
                 # Resizing the current reference frame
                 gt_cur = cv2_imread(gtlist[index[1]])
                 gt_cur = cv2.resize(gt_cur, (width // 2, height // 2), interpolation=cv2.INTER_AREA)
-                # cv2.imshow("Crop1", cropped_img_1)
-                # cv2.imshow("Crop2", cropped_img_2)
-                # cv2.imshow("Crop3", cropped_img_3)
-                # cv2.imshow("Crop4", cropped_img_4)
-                # cv2.imshow("next", gt_cur)
+                # cv2.imshow("TopLeft", top_left)
+                # cv2.imshow("BottomLeft", bottom_left)
+                # cv2.imshow("TopRight", top_right)
+                # cv2.imshow("BottomRight", bottom_right)
+                # cv2.imshow("Current", gt_cur)
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
-                cropped_1 = cropped_img_1[height//2 - out_h:height//2, width//2 - out_w:width//2, :].astype(np.float32)/255.0
-                cropped_2 = cropped_img_2[0:out_h, width // 2 - out_w:width // 2, :].astype(np.float32) / 255.0
-                cropped_3 = cropped_img_3[height // 2 - out_h:height // 2, 0:out_w, :].astype(np.float32) / 255.0
-                cropped_4 = cropped_img_4[0:out_h, 0:out_w, :].astype(np.float32) / 255.0
-
-                # cv2.imshow("myCrop1", cropped_1)
-                # cv2.imshow("myCrop2", cropped_2)
-                # cv2.imshow("myCrop3", cropped_3)
-                # cv2.imshow("myCrop4", cropped_4)
+                top_left_crop = top_left[height//2 - out_h:height//2, width//2 - out_w:width//2, :].astype(np.float32)/255.0
+                bottom_left_crop = bottom_left[0:out_h, width // 2 - out_w:width // 2, :].astype(np.float32) / 255.0
+                top_right_crop = top_right[height // 2 - out_h:height // 2, 0:out_w, :].astype(np.float32) / 255.0
+                bottom_right_crop = bottom_right[0:out_h, 0:out_w, :].astype(np.float32) / 255.0
 
                 # Original cropping done by authors
                 # cropped_img_1 = cropped_img_1[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
@@ -255,18 +250,18 @@ class PFNL_alternative(VSR):
                 # cropped_img_3 = cropped_img_3[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
                 # cropped_img_4 = cropped_img_4[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
 
-                gt_cur = gt_cur[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
+                gt_cur_crop = gt_cur[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
                 # print("gt_cur image shape: {}".format(gt_cur.shape))
 
-                # cv2.imshow("Crop1", cropped_img_1)
-                # cv2.imshow("Crop2", cropped_img_2)
-                # cv2.imshow("Crop3", cropped_img_3)
-                # cv2.imshow("Crop4", cropped_img_4)
-                # cv2.imshow("next", gt_cur)
+                # cv2.imshow("TopLeftCrop", top_left_crop)
+                # cv2.imshow("BottomLeftCrop", bottom_left_crop)
+                # cv2.imshow("TopRightCrop", top_right_crop)
+                # cv2.imshow("BottomRightCrop", bottom_right_crop)
+                # cv2.imshow("CurrentCrop", gt_cur_crop)
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
 
-                batch_gt.append(np.stack((cropped_1, cropped_2, cropped_3, cropped_4, gt_cur), axis=0))
+                batch_gt.append(np.stack((top_left_crop, bottom_left_crop, top_right_crop, bottom_right_crop, gt_cur_crop), axis=0))
 
                 # gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
                 # batch_gt.append(np.stack(gt, axis=0))

@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'test_delete'
+NAME = 'alternative_20200518'
 
 
 # Class holding all of the PFNL functions
@@ -486,41 +486,30 @@ class PFNL_alternative(VSR):
         imgs = np.array([cv2_imread(i) for i in imgs_arr]) / 255.
         h, w, c = imgs[0].shape
 
-        imgs_downsized = []
-        imgs_tiled = []
         all_imgs = []
 
+        frames_foregone = 5
 
-        for i in imgs_arr:
-            img = cv2_imread(i)
-            ''' To do: ensure tiled image is previous and downsize is current
-            '''
-            # Resize image by half
-            img_downsize = cv2.resize(img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
-            img_downsize = np.array(img_downsize) / 255
+        for i in range(frames_foregone, len(imgs_arr) - 5):
+            # Reading and downsizing current image
+            cur_img = cv2_imread(imgs_arr[i])
+            cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+            cur_img_downsize = np.array(cur_img_downsize) / 255
 
-            img_tl = img[0: h // 2, 0: w // 2]
-            img_bl = img[h // 2: h, 0: w // 2]
-            img_tr = img[0: h // 2, w // 2: w]
-            img_br = img[h // 2: h, w // 2: w]
+            # Reading previous HR image and splitting into tiles
+            prev_img = cv2_imread(imgs_arr[i-1])
+            prev_top_left = prev_img[0: h // 2, 0: w // 2]
+            prev_bottom_left = prev_img[h // 2: h, 0: w // 2]
+            prev_top_right = prev_img[0: h // 2, w // 2: w]
+            prev_bottom_right = prev_img[h // 2: h, w // 2: w]
 
-            img_tl = np.array(img_tl) / 255
-            img_bl = np.array(img_bl) / 255
-            img_tr = np.array(img_tr) / 255
-            img_br = np.array(img_br) / 255
+            prev_top_left = np.array(prev_top_left) / 255
+            prev_bottom_left = np.array(prev_bottom_left) / 255
+            prev_top_right = np.array(prev_top_right) / 255
+            prev_bottom_right = np.array(prev_bottom_right) / 255
 
-            # batch = np.stack((img_tl, img_bl, img_tr, img_br), axis=0)
-            # batch_concat = np.concatenate( (batch_concat, batch), axis=0)
-            # print("batch shape: {}".format(batch_concat.shape))
+            all_imgs.extend([prev_top_left, prev_bottom_left,cur_img_downsize, prev_top_right, prev_bottom_right])
 
-            imgs_downsized.append(img_downsize)
-            imgs_tiled.extend([img_tl, img_bl, img_tr, img_br])
-            # all_imgs.extend([img_downsize, img_bl, img_tl,  img_tr, img_br])
-            all_imgs.extend([img_bl, img_tl, img_br, img_downsize, img_tr])
-            # all_imgs.append(img_downsize)
-
-        print("imgs_downsized shape: {}".format(len(imgs_downsized)))
-        print("imgs_tiled shape: {}".format(len(imgs_tiled)))
         print("all_imgs shape: {}".format(len(all_imgs)))
 
         if part > max_frame:
@@ -529,8 +518,6 @@ class PFNL_alternative(VSR):
             num_once = max_frame // part
         else:
             num_once = max_frame // part + 1
-
-
 
         L_test = tf.placeholder(tf.float32, shape=[num_once, (self.num_frames+3), h // (2*self.scale), w // (2*self.scale), 3],
                                 name='L_test')
@@ -555,22 +542,21 @@ class PFNL_alternative(VSR):
         lr_list = []
         test = np.zeros((1, 5, h // 4, w // 4, c))
         print("test shape: {}".format(test.shape))
-        max_frame = imgs.shape[0]
-        frames_foregone = 5
-        for i in range(frames_foregone, max_frame - frames_foregone):
-            index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
+
+        for i in range(part - 2*frames_foregone):
+            index = np.array([i for i in range(i + frames_foregone - self.num_frames + 1, i + frames_foregone + 1)])
             # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
             print("index: {}".format(index))
             # lr_list.append(np.array([lrs[j] for j in index]))
-            print("relative frames: {}:{}".format(i*5, i*5 + 4))
-            lr_list.extend(np.array(lrs[i*5: i*5 + 5]))
-
-            batch_lr = np.stack(lrs[i*5: i*5 + 5])
+            print("relative frames: {}:{}".format(i * 5, i * 5 + 4))
+            lr_list.extend(np.array(lrs[i * 5: i * 5 + 5]))
+            batch_lr = np.stack(lrs[i * 5: i * 5 + 5])
             batch_lr = np.expand_dims(batch_lr, 0)
             print("batch_lr shape: {}".format(batch_lr.shape))
             test = np.concatenate((test, batch_lr), axis=0)
             print("test shape: {}".format(test.shape))
+
 
         lr_list = np.array(lr_list)
         test = test[1:]
@@ -586,10 +572,6 @@ class PFNL_alternative(VSR):
             st_time = time.time()
             run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
             # print('Num_once: {}'.format(num_once))
-            # print("Lr_list index: {}:{}".format(i * num_once, (i + 1) * num_once))
-            # sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i * num_once:(i + 1) * num_once]},
-            #                    options=run_options)
-
             # print("Lr_list index: {}:{}".format(i * num_once, (i + 1) * num_once))
             sr = self.sess.run(SR_test, feed_dict={L_test: test[i * num_once:(i + 1) * num_once]},
                                options=run_options)

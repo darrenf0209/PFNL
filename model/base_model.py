@@ -192,7 +192,6 @@ class VSR(object):
         pathlist = open(self.train_dir, 'rt').read().splitlines()
         # print("There are {} video sequences".format(len(pathlist)))
         random.shuffle(pathlist)
-
         # Store all image paths into a single ground-truth list
         gt_list_all = []
         for path in pathlist:
@@ -228,10 +227,8 @@ class VSR(object):
         #     cv2.imshow("img_{}".format(i), gt_batch[i, :, :, :])
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-
         inp, gt = tf.train.batch([inp, gt], batch_size=self.batch_size, num_threads=3,
                                  capacity=self.batch_size * 2)
-
         return inp, gt
 
     def single_input_producer(self):

@@ -19,11 +19,8 @@ from os.path import join
 import glob
 
 
-
-
 def NonLocalBlock(input_x, out_channels, sub_sample=1, nltype=0, is_bn=False, scope='NonLocalBlock'):
-    '''https://github.com/nnUyi/Non-Local_Nets-Tensorflow
-    '''
+    '''https://github.com/nnUyi/Non-Local_Nets-Tensorflow'''
     batchsize, height, width, in_channels = input_x.get_shape().as_list()
     typedict = {0: 'embedded_gaussian', 1: 'gaussian', 2: 'dot_product', 3: 'concat'}
     with tf.variable_scope(scope) as sc:
@@ -263,9 +260,6 @@ def AVG_PSNR(vid_true, vid_pred, vmin=0, vmax=255, t_border=2, sp_border=8, is_T
     return np.mean(np.asarray(psnrs))
 
 
-# OLD
-# he_normal_init = tf.contrib.layers.variance_scaling_initializer(factor=2.0, mode='FAN_IN', uniform=False)
-# New
 he_normal_init = tf.keras.initializers.VarianceScaling(
     scale=2.0, mode='fan_in', distribution='truncated_normal', seed=None
 )

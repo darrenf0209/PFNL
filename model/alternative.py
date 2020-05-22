@@ -31,25 +31,28 @@ This is a modified version of PFNL by Darren Flaks.
 '''
 NAME = 'alternative_20200518'
 
+
 # Class holding all of the PFNL functions
 class PFNL_alternative(VSR):
     def __init__(self):
-        # Initialize variables with respect to images, training, evaluating and directory locations
-        # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
+        # number of input frames to the network
         self.num_frames = 2
+        # Super-resolution scale
         self.scale = 2
+        # Takes <num_frames> 32x32 frames for the NLRB reduce computation cost
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
         self.eval_in_size = [128, 240]
+        # Batch sizes for training and evaluation
         self.batch_size = 1
         self.eval_basz = 1
-        # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
+        # initial learning rate and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate = 0.2e-3
         self.end_lr = 1e-4
         self.reload = True
-        # Number of iterations for training
         self.max_step = int(2.5e5 + 1)
         self.decay_step = 1.2e5
+        # Directories for training or validation images, saving checkpoints or logging information
         self.train_dir = './data/filelist_train.txt'
         self.eval_dir = './data/filelist_val.txt'
         self.save_dir = './checkpoint/pfnl_{}'.format(NAME)
@@ -175,7 +178,6 @@ class PFNL_alternative(VSR):
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
-        # epsilon is empirically set to 10e-3 (error in code?)
         loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
 
         # Evaluate mean squared error
@@ -351,7 +353,6 @@ class PFNL_alternative(VSR):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
-                # LR, HR = self.alternative_pipeline()
             if (time.time() - start_time) > 5 and step % 500 == 0:
                 print("Saving checkpoint")
                 # if step > gs:

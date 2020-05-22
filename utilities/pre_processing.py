@@ -123,19 +123,18 @@ def tile_img(img_path):
     # print("original shape: {}".format(img.shape))
     height = img.shape[0]
     width = img.shape[1]
-    cropped_img_1 = img[0:height // 2, 0:width // 2]
-    cropped_img_2 = img[height // 2:height, 0:width // 2]
-    cropped_img_3 = img[0:height // 2, width // 2:width]
-    cropped_img_4 = img[height // 2:height, width // 2:width]
-    # print("Tiled shape: {}".format(cropped_img_1.shape))
-    # cv2.imshow("original", img)
-    # cv2.imshow("Crop1", cropped_img_1)
-    # cv2.imshow("Crop2", cropped_img_2)
-    # cv2.imshow("Crop3", cropped_img_3)
-    # cv2.imshow("Crop4", cropped_img_4)
+    top_left = img[0:height // 2, 0:width // 2]
+    bottom_left = img[height // 2:height, 0:width // 2]
+    top_right = img[0:height // 2, width // 2:width]
+    bottom_right = img[height // 2:height, width // 2:width]
+    # print("Tiled shape: {}".format(top_left.shape))
+    # cv2.imshow("TopLeft", top_left)
+    # cv2.imshow("BottomLeft", bottom_left)
+    # cv2.imshow("TopRight", top_right)
+    # cv2.imshow("BottomRight", bottom_right)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    batch = np.stack((cropped_img_1, cropped_img_2, cropped_img_3, cropped_img_4), axis=0)
+    batch = np.stack((top_left, bottom_left, top_right, bottom_right), axis=0)
     # print("Tiled batch shape: {}".format(batch.shape))
 
     return batch

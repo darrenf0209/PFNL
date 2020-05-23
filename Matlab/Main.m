@@ -1,9 +1,9 @@
 function psnr_file(path1,path2)
 scale=2;
 %fpath='/dev/f/data/video/test2/vid4/';
-fpath = 'C:\Users\darre\OneDrive\Documents\GitHub\PFNL\test\udm10\';
+fpath = 'C:\Users\darre\OneDrive\Documents\GitHub\PFNL\test\vid4\';
 %model='pfnl'
-model='result_pfnl'
+model='LR_LR_DELETE_null_20200517_1589700121'
 fid=fopen(strcat(fpath,model,'.txt'),'wt');
 fprintf(fid,'{\n');
 list0=dir(strcat(fpath));
@@ -18,7 +18,7 @@ for j = 1:length(list0)
     end
     idx=idx+1;
     kind=strcat(fpath,list0(j).name);
-    path1=strcat(kind,'/truth/');
+    path1=strcat(kind,'/truth_downsize_2_frames_foregone/');
     path2=strcat(kind,'/',model,'/');
     list1= dir(strcat(path1,'*.png'));
     list2= dir(strcat(path2,'*.png'));
@@ -47,10 +47,10 @@ for j = 1:length(list0)
 
         psnr=compute_psnr(img1,img2,scale);
         sum_p=sum_p+psnr;
-        %fprintf('%d %f\n',i,psnr);
+%         fprintf('%d %f\n',i,psnr);
         ssim=SSIM(img1,img2);
         sum_s=sum_s+ssim; 
-        %fprintf('%d %f\n',i,ssim);
+%         fprintf('%d %f\n',i,ssim);
     end
     avg_p=sum_p/index;
     avg_s=sum_s/index;

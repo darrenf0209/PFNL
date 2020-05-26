@@ -211,13 +211,30 @@ class VSR(object):
         # Create a batch of length self.num_frames, starting from the index frame
         gt_batch = gt_vid[rand_frame:rand_frame + self.num_frames]
         # print("Batch_list: {}".format(gt_batch))
-        tiled_imgs = tile_img(gt_batch[0])
-        resized_img = resize_img(gt_batch[-1])
-        resized_img = np.expand_dims(resized_img, axis=0)
-        gt_batch = np.concatenate((tiled_imgs, resized_img), axis=0)
-        # print("new batch shape: {}".format(gt_batch.shape))
 
-        # Call original pre-processing function for data augmentation, flip and resizing
+        # NEW
+        cur_img = cv2_imread(gt_batch[1])
+        h, w, c = cur_img.shape
+        print("H: {}, W: {}, C: {}".format(h, w, c))
+        cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+
+        prev_img = cv2_imread(gt_batch[0])
+        prev_top_left = prev_img[0: h // 2, 0: w // 2]
+        prev_bottom_left = prev_img[h // 2: h, 0: w // 2]
+        prev_top_right = prev_img[0: h // 2, w // 2: w]
+        prev_bottom_right = prev_img[h // 2: h, w // 2: w]
+
+        gt_batch = np.stack((prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right), axis=0)
+        print("new batch shape: {}".format(gt_batch.shape))
+
+        # ORIGINAL
+        # tiled_imgs = tile_img(gt_batch[0])
+        # resized_img = resize_img(gt_batch[-1])
+        # resized_img = np.expand_dims(resized_img, axis=0)
+        # gt_batch = np.concatenate((tiled_imgs, resized_img), axis=0)
+        # # print("new batch shape: {}".format(gt_batch.shape))
+        #
+        # # Call original pre-processing function for data augmentation, flip and resizing
         inp, gt = prepprocessing(gt_batch)
         # inp = tf.expand_dims(inp, 0)
         # gt = tf.expand_dims(gt, 0)

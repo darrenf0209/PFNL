@@ -31,13 +31,13 @@ if __name__=='__main__':
 
     # Testing the model
     if isinstance(model, PFNL_control):
-        model.testvideos('test\\vid4\\', name='{}_{}'.format(CONTROL, time.strftime("%Y%m%d", time.localtime())))
-        model.testvideos('test\\udm10\\', name='{}_{}'.format(CONTROL, time.strftime("%Y%m%d", time.localtime())))
+        NAME = CONTROL
     elif isinstance(model, PFNL_null):
-        model.testvideos('test\\vid4\\', name='{}_{}'.format(NULL, time.strftime("%Y%m%d", time.localtime())))
-        model.testvideos('test\\udm10\\', name='{}_{}'.format(NULL, time.strftime("%Y%m%d", time.localtime())))
+        NAME = NULL
     else:
-        model.testvideos('test\\vid4\\', name='{}_{}'.format(ALTERNATIVE, time.strftime("%Y%m%d", time.localtime())))
-        model.testvideos('test\\udm10\\', name='{}_{}'.format(ALTERNATIVE, time.strftime("%Y%m%d", time.localtime())))
+        NAME = ALTERNATIVE
+
+    model.testvideos('test\\vid4\\', name=NAME)
+    model.testvideos('test\\udm10\\', name=NAME)
 
     print('Runtime finished')

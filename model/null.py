@@ -54,6 +54,7 @@ class PFNL_null(VSR):
         self.eval_dir = './data/filelist_val.txt'
         self.save_dir = './checkpoint/pfnl_{}'.format(NAME)
         self.log_dir = './logs/pfnl_{}.txt'.format(NAME)
+        self.test_dir = './test/{}_test_time.txt'.format(NAME)
 
     def forward(self, x):
         # Filters: dimensionality of output space
@@ -435,6 +436,17 @@ class PFNL_null(VSR):
         all_time = np.array(all_time)
         if max_frame > 0:
             all_time = np.array(all_time)
+            cur_folder = path.lstrip('test\\udm10')
+            cur_folder = cur_folder.lstrip('test\\vid4')
+            time_dict = {
+                "Folder": cur_folder,
+                "Number of Frames": part - 2 * frames_foregone,
+                "Total Time": np.sum(all_time),
+                "Mean Time": np.mean(all_time[1:])
+            }
+            with open(self.test_dir, 'a+') as f:
+                f.write(json.dumps(time_dict))
+                f.write('\n')
             print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
 
     '''

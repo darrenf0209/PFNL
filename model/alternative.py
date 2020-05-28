@@ -57,7 +57,7 @@ class PFNL_alternative(VSR):
         self.eval_dir = './data/filelist_val.txt'
         self.save_dir = './checkpoint/{}'.format(NAME)
         self.log_dir = './logs/{}.txt'.format(NAME)
-        self.test_dir = './test/time_{}.txt'.format(NAME)
+        self.test_dir = './test/{}_test_time.txt'.format(NAME)
 
     def forward(self, x):
         # Filters: dimensionality of output space

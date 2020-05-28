@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'alternative_bic_fix_20200526'
+NAME = 'alternative_1_20200527'
 
 
 # Class holding all of the PFNL functions
@@ -55,8 +55,9 @@ class PFNL_alternative(VSR):
         # Directories for training or validation images, saving checkpoints or logging information
         self.train_dir = './data/filelist_train.txt'
         self.eval_dir = './data/filelist_val.txt'
-        self.save_dir = './checkpoint/pfnl_{}'.format(NAME)
-        self.log_dir = './logs/pfnl_{}.txt'.format(NAME)
+        self.save_dir = './checkpoint/{}'.format(NAME)
+        self.log_dir = './logs/{}.txt'.format(NAME)
+        self.test_dir = './test/time_{}.txt'.format(NAME)
 
     def forward(self, x):
         # Filters: dimensionality of output space
@@ -118,7 +119,7 @@ class PFNL_alternative(VSR):
             # print("inp0 conv0: {}".format(inp0))
             # Last frame is the current frame (causal system)
             # bic = tf.image.resize_images(x[:, -1, :, :, :], [w * self.scale, h * self.scale], method=2)
-            bic = tf.image.resize_images(x[:, self.num_frames // 2, :, :, :], [w * self.scale, h * self.scale],
+            bic = tf.image.resize_images(x[:, self.num_frames // 2 + 1, :, :, :], [w * self.scale, h * self.scale],
                                          method=2)
             # print("bic: {}".format(bic))
 
@@ -202,7 +203,7 @@ class PFNL_alternative(VSR):
         bd = border // self.scale
         eval_gt = tf.placeholder(tf.float32, [None, (self.num_frames+3), out_h, out_w, 3])
         eval_inp = DownSample(eval_gt, BLUR, scale=self.scale)
-        print("eval_inp: {}".format(eval_inp))
+        # print("eval_inp: {}".format(eval_inp))
 
         filenames = open(self.eval_dir, 'rt').read().splitlines()  # sorted(glob.glob(join(self.eval_dir,'*')))
         # print("Filenames: {}".format(filenames))
@@ -219,7 +220,7 @@ class PFNL_alternative(VSR):
                 index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
                 # print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
-                print("Index: {}".format(index))
+                # print("Index: {}".format(index))
                 # gt = [cv2_imread(gtlist[i]) for i in index]
                 # Tiling the previous image
                 gt_prev = cv2_imread(gtlist[index[0]])
@@ -263,7 +264,8 @@ class PFNL_alternative(VSR):
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
 
-                batch_gt.append(np.stack((top_left_crop, bottom_left_crop, top_right_crop, bottom_right_crop, gt_cur_crop), axis=0))
+                ''' changed'''
+                batch_gt.append(np.stack((top_left_crop, bottom_left_crop, gt_cur_crop, top_right_crop, bottom_right_crop), axis=0))
 
                 # gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
                 # batch_gt.append(np.stack(gt, axis=0))
@@ -403,9 +405,9 @@ class PFNL_alternative(VSR):
         automkdir(save_path)
         inp_path = join(path, 'truth')
         # inp_path=join(path,'truth_downsize_2')
-        print("Input Path: {}".format(inp_path))
+        # print("Input Path: {}".format(inp_path))
         imgs_arr = sorted(glob.glob(join(inp_path, '*.png')))
-        print("Image set: {}".format(imgs_arr))
+        # print("Image set: {}".format(imgs_arr))
         max_frame = len(imgs_arr)
         print("Number of frames: {}".format(max_frame))
         # still need this
@@ -435,7 +437,7 @@ class PFNL_alternative(VSR):
             prev_bottom_right = np.array(prev_bottom_right) / 255
 
             # all_imgs.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
-            all_imgs.extend([prev_top_left, prev_bottom_left, prev_top_right, prev_bottom_right, cur_img_downsize])
+            all_imgs.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
 
         print("all_imgs shape: {}".format(len(all_imgs)))
 
@@ -476,20 +478,20 @@ class PFNL_alternative(VSR):
             index = np.array([i for i in range(i + frames_foregone - self.num_frames + 1, i + frames_foregone + 1)])
             # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
-            print("index: {}".format(index))
+            # print("index: {}".format(index))
             # lr_list.append(np.array([lrs[j] for j in index]))
-            print("relative frames: {}:{}".format(i * 5, i * 5 + 4))
+            # print("relative frames: {}:{}".format(i * 5, i * 5 + 4))
             # lr_list.extend(np.array(lrs[i * 5: i * 5 + 5]))
             batch_lr = np.stack(np.array(lrs[i * 5: i * 5 + 5]))
             batch_lr = np.expand_dims(batch_lr, 0)
-            print("batch_lr shape: {}".format(batch_lr.shape))
+            # print("batch_lr shape: {}".format(batch_lr.shape))
             test = np.concatenate((test, batch_lr), axis=0)
-            print("test shape: {}".format(test.shape))
+            # print("test shape: {}".format(test.shape))
 
         # lr_list = np.array(lr_list)
         test = np.array(test[1:])
         # print("Shape of lr list: {}".format(lr_list.shape))
-        print("test shape: {}".format(test.shape))
+        # print("test shape: {}".format(test.shape))
 
         print('Save at {}'.format(save_path))
         print('{} Inputs With Shape {}'.format(lrs.shape[0], lrs.shape[1:]))
@@ -516,7 +518,20 @@ class PFNL_alternative(VSR):
         all_time = np.array(all_time)
         if max_frame > 0:
             all_time = np.array(all_time)
+            cur_folder = path.lstrip('test\\udm10')
+            cur_folder = cur_folder.lstrip('test\\vid4')
+            time_dict = {
+                "Folder": cur_folder,
+                "Number of Frames": part - 2 * frames_foregone,
+                "Total Time": np.sum(all_time),
+                "Mean Time": np.mean(all_time[1:])
+            }
+            with open(self.test_dir, 'a+') as f:
+                f.write(json.dumps(time_dict))
+                f.write('\n')
             print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
+
+
 
     '''
     This function accepts video frames of low quality and

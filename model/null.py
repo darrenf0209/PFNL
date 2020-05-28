@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'null_20200517'
+NAME = 'null_20200525'
 
 # Class holding all of the PFNL functions
 class PFNL_null(VSR):
@@ -359,14 +359,15 @@ class PFNL_null(VSR):
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
-        inp_path = join(path, 'truth_downsize_2')
+        inp_path = join(path, 'truth')
         # inp_path=join(path,'truth_downsize_2')
         print("Input Path: {}".format(inp_path))
-        imgs = sorted(glob.glob(join(inp_path, '*.png')))
-        print("Image set: {}".format(imgs))
-        max_frame = len(imgs)
+        imgs_arr = sorted(glob.glob(join(inp_path, '*.png')))
+        print("Image set: {}".format(imgs_arr))
+        max_frame = len(imgs_arr)
         print("Number of frames: {}".format(max_frame))
-        imgs = np.array([cv2_imread(i) for i in imgs]) / 255.
+
+        imgs = np.array([cv2_imread(i) for i in imgs_arr]) / 255.
 
         if part > max_frame:
             part = max_frame
@@ -376,8 +377,15 @@ class PFNL_null(VSR):
             num_once = max_frame // part + 1
 
         h, w, c = imgs[0].shape
+        all_imgs = []
 
-        L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h // self.scale, w // self.scale, 3],
+        for i in range(len(imgs_arr)):
+            img = cv2_imread(imgs_arr[i])
+            img = cv2.resize(img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+            img = np.array(img) / 255
+            all_imgs.append(img)
+
+        L_test = tf.placeholder(tf.float32, shape=[num_once, self.num_frames, h // (2*self.scale), w // (2*self.scale), 3],
                                 name='L_test')
         SR_test = self.forward(L_test)
         if not reuse:
@@ -395,7 +403,7 @@ class PFNL_null(VSR):
             self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
             self.load(sess, self.save_dir)
         run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-        lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: imgs}, options=run_options)
+        lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: all_imgs}, options=run_options)
         lr_list = []
         max_frame = lrs.shape[0]
         frames_foregone = 5

@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'null_20200525'
+NAME = 'null_3_20200529'
 
 # Class holding all of the PFNL functions
 class PFNL_null(VSR):
@@ -52,8 +52,8 @@ class PFNL_null(VSR):
         self.decay_step = 1.2e5
         self.train_dir = './data/filelist_train.txt'
         self.eval_dir = './data/filelist_val.txt'
-        self.save_dir = './checkpoint/pfnl_{}'.format(NAME)
-        self.log_dir = './logs/pfnl_{}.txt'.format(NAME)
+        self.save_dir = './checkpoint/{}'.format(NAME)
+        self.log_dir = './logs/{}.txt'.format(NAME)
         self.test_dir = './test/{}_test_time.txt'.format(NAME)
 
     def forward(self, x):

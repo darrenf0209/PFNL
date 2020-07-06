@@ -3,6 +3,7 @@ data/train/*
 data/val/*
 /test/udm10/*
 /test/vid4/*
+/test/additional/*
 *.png
 
 # Ignoring checkpoints and logs

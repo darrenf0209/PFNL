@@ -138,3 +138,19 @@ def tile_img(img_path):
     # print("Tiled batch shape: {}".format(batch.shape))
 
     return batch
+
+
+def vid_to_frame(vid_name, format='png'):
+
+    vid_path = "test\\additional\\{}".format(vid_name)
+    save_path = 'test\\additional\\{}'.format(vid_name.rstrip('.mp4'))
+    automkdir(save_path)
+    vid_capture = cv2.VideoCapture(vid_path)
+    success, image = vid_capture.read()
+    count = 0
+    while success:
+        # cur_frame = "frame%d.png" % count
+        cv2.imwrite(save_path + "\\frame%d.png" % count, image)
+        success, image = vid_capture.read()
+        print("Read frame {} {}".format(count, success))
+        count += 1

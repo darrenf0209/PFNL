@@ -29,26 +29,27 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'LR_test_Delete_1'
+NAME = 'control_7_3_20200602'
 
 # Class holding all of the PFNL functions
 class PFNL_control(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
-        self.num_frames = 1
+        self.num_frames = 7
         self.scale = 2
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
         self.eval_in_size = [128, 240]
-        self.batch_size = 4
-        self.eval_basz = 4
+        self.batch_size = 1
+        self.eval_basz = 1
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
-        self.learning_rate = 0.4e-3
-        self.end_lr = 1e-4
+        self.learning_rate = 0.2e-3
+        # [(1, 1.5), (0.5, 1.7), (0.25, 1.9), (0.1, 2.1), (0.05, 2.3), (0.025, 2.5), (0.01, 2.7), (0.005, 2.9), (0.0025, 3.0)]
+        self.end_lr = 0.0025e-4
         self.reload = True
         # Number of iterations for training
-        self.max_step = int(2.5e5 + 1)
+        self.max_step = int(3e5 + 1)
         self.decay_step = 1.2e5
         self.train_dir = './data/filelist_train.txt'
         self.eval_dir = './data/filelist_val.txt'
@@ -213,9 +214,9 @@ class PFNL_control(VSR):
             # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
                 index = np.array([i for i in range(idx0 - self.num_frames // 2, idx0 + self.num_frames // 2 + 1)])
-                print("Index: {}".format(index))
+                # print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
-                print("Index: {}".format(index))
+                # print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
                 gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
                 batch_gt.append(np.stack(gt, axis=0))
@@ -265,7 +266,7 @@ class PFNL_control(VSR):
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
 
         # Tensorboard logging
-        log_dir = "tb_graph\\{}_{}".format(NAME, time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
+        # log_dir = "tb_graph\\{}_{}".format(NAME, time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
         config = tf.ConfigProto()
         # Attempt to allocate only as much GPU memory based on runtime allocations
         # Allocatee little memory, and as Sessions continues to run, more GPU memory is provided
@@ -275,8 +276,8 @@ class PFNL_control(VSR):
         self.sess = sess
         # Output tensors and metadata obtained when executing a session
         sess.run(tf.global_variables_initializer())
-        writer = tf.summary.FileWriter(log_dir, sess.graph)
-        writer.close()
+        # writer = tf.summary.FileWriter(log_dir, sess.graph)
+        # writer.close()
         # Save class adds the ability to save and restore variables to and from checkpoints
         # max_to_keep indicates the maximum number of recent checkpoint files to keep (default is 5)
         # keep_checkpoint_every_n_hours here means keep 1 checkpoint every hour of training
@@ -303,13 +304,15 @@ class PFNL_control(VSR):
                 # if step > gs:
                 #     self.save(sess, self.save_dir, step)
                 self.save(sess, self.save_dir, step)
-                training_cost_time = time.time() - start_time
-                print('cost {}s.'.format(training_cost_time))
-                print('Training cost time {}s.'.format(training_cost_time))
+                training_time = time.time() - start_time
+                print('Training cost time {}s.'.format(training_time))
                 np_losses = np.array(losses)
                 avg_loss = np.mean(np_losses)
                 print("Average Loss from 500 Iterations: {}".format(avg_loss))
                 mse_avg, psnr_avg = self.eval()
+
+                cost_time = time.time() - start_time
+                print('Training and evaluation cost {}s.'.format(cost_time))
 
                 log_dict = {
                     "Date": time.strftime("%Y-%m-%d", time.localtime()),
@@ -317,16 +320,17 @@ class PFNL_control(VSR):
                     "Iteration": int(sess.run(self.global_step)),
                     "PSNR": float(psnr_avg[0]),
                     "MSE": float(mse_avg[0]),
-                    "Training Time": training_cost_time,
-                    "Loss": float(avg_loss)
+                    "Loss": float(avg_loss),
+                    "Training Time": training_time,
+                    "Total Time": cost_time
                 }
 
                 with open(self.log_dir, 'a+') as f:
                     f.write(json.dumps(log_dict))
                     f.write('\n')
                 print("Log complete")
-                cost_time = time.time() - start_time
-                print('Training and evaluation cost {}s.'.format(cost_time))
+
+
                 start_time = time.time()
                 print("Timing restarted")
 

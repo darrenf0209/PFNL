@@ -12,7 +12,7 @@ import cv2
 import json
 import time
 from tensorflow.python.layers.convolutional import Conv2D, conv2d
-from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, get_num_params, cv2_imread, cv2_imsave, automkdir
+from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, cv2_imread, cv2_imsave, automkdir, end_lr_schedule
 from tqdm import tqdm, trange
 from model.base_model import VSR
 # TensorFlow back-compatability
@@ -29,14 +29,14 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'control_7_3_20200602'
+NAME = 'DELETE_LR_TRIAL'
 
 # Class holding all of the PFNL functions
 class PFNL_control(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
-        self.num_frames = 7
+        self.num_frames = 3
         self.scale = 2
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
@@ -46,7 +46,7 @@ class PFNL_control(VSR):
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate = 0.2e-3
         # [(1, 1.5), (0.5, 1.7), (0.25, 1.9), (0.1, 2.1), (0.05, 2.3), (0.025, 2.5), (0.01, 2.7), (0.005, 2.9), (0.0025, 3.0)]
-        self.end_lr = 0.0025e-4
+        self.end_lr = 1e-4
         self.reload = True
         # Number of iterations for training
         self.max_step = int(3e5 + 1)
@@ -317,7 +317,7 @@ class PFNL_control(VSR):
                 log_dict = {
                     "Date": time.strftime("%Y-%m-%d", time.localtime()),
                     "Time": time.strftime("%H:%M:%S", time.localtime()),
-                    "Iteration": int(sess.run(self.global_step)),
+                    "Iteration": step,
                     "PSNR": float(psnr_avg[0]),
                     "MSE": float(mse_avg[0]),
                     "Loss": float(avg_loss),
@@ -333,6 +333,8 @@ class PFNL_control(VSR):
 
                 start_time = time.time()
                 print("Timing restarted")
+                self.end_lr = end_lr_schedule(step) if end_lr_schedule(step) != "invalid" else self.end_lr
+                print("Current end learning rate: {}".format(self.end_lr))
 
 
             lr1, hr = sess.run([LR, HR])

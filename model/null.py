@@ -12,7 +12,7 @@ import cv2
 import json
 import time
 from tensorflow.python.layers.convolutional import Conv2D, conv2d
-from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, get_num_params, cv2_imread, cv2_imsave, automkdir
+from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, cv2_imread, cv2_imsave, automkdir, end_lr_schedule
 from tqdm import tqdm, trange
 from model.base_model import VSR
 # TensorFlow back-compatability
@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'null_3_20200529'
+NAME = 'learning_rate_scheme_delete'
 
 # Class holding all of the PFNL functions
 class PFNL_null(VSR):
@@ -302,12 +302,13 @@ class PFNL_null(VSR):
         start_time = time.time()
         # print("start time: {}".format(start_time))
         gs = sess.run(global_step)
-        print("gs: {}".format(gs))
+        print("Current global step: {}".format(gs))
         losses = []
         for step in range(sess.run(global_step), self.max_step):
             if step > gs and step % 20 == 0:
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
+                print("End learning rate: {}".format(self.learning_rate))
 
                 # LR, HR = self.null_pipeline()
 
@@ -344,6 +345,10 @@ class PFNL_null(VSR):
 
                 start_time = time.time()
                 print("Timing restarted")
+
+                self.end_lr = end_lr_schedule(step) if end_lr_schedule(step) != "invalid" else self.end_lr
+                print("Current end learning rate: {}".format(self.end_lr))
+
 
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})

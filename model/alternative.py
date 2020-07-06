@@ -12,7 +12,7 @@ import cv2
 import json
 import time
 from tensorflow.python.layers.convolutional import Conv2D, conv2d
-from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, get_num_params, cv2_imread, cv2_imsave, automkdir
+from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, cv2_imread, cv2_imsave, automkdir, end_lr_schedule
 from tqdm import tqdm, trange
 from model.base_model import VSR
 # TensorFlow back-compatability
@@ -387,6 +387,11 @@ class PFNL_alternative(VSR):
 
                 start_time = time.time()
                 print("Timing restarted")
+
+                self.end_lr = end_lr_schedule(step) if end_lr_schedule(step) != "invalid" else self.end_lr
+                print("Current end learning rate: {}".format(self.end_lr))
+
+
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
             # _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: LR, self.H: HR})

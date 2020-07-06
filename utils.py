@@ -89,6 +89,21 @@ def automkdir(path):
         os.makedirs(path)
 
 
+def end_lr_schedule(step):
+    switcher = {
+        150e3: 1e-4,
+        170e3: 0.5e-4,
+        190e3: 0.25e-4,
+        210e3: 0.1e-4,
+        230e3: 0.05e-4,
+        250e3: 0.025e-4,
+        270e3: 0.01e-4,
+        290e3: 0.005e-4,
+        300e3: 0.0025e-4
+    }
+    return switcher.get(step, "invalid")
+
+
 def get_num_params(vars):
     num_params = 0
     for variable in vars:

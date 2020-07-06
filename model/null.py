@@ -316,12 +316,15 @@ class PFNL_null(VSR):
                 # if step > gs:
                 #     self.save(sess, self.save_dir, step)
                 self.save(sess, self.save_dir, step)
-                training_cost_time = time.time() - start_time
-                print('Training cost time {}s.'.format(training_cost_time))
+                training_time = time.time() - start_time
+                print('Training cost time {}s.'.format(training_time))
                 np_losses = np.array(losses)
                 avg_loss = np.mean(np_losses)
                 print("Average Loss from 500 Iterations: {}".format(avg_loss))
                 mse_avg, psnr_avg = self.eval()
+
+                cost_time = time.time() - start_time
+                print('Training and evaluation cost {}s.'.format(cost_time))
 
                 log_dict = {
                     "Date": time.strftime("%Y-%m-%d", time.localtime()),
@@ -329,8 +332,9 @@ class PFNL_null(VSR):
                     "Iteration": int(sess.run(self.global_step)),
                     "PSNR": float(psnr_avg[0]),
                     "MSE": float(mse_avg[0]),
-                    "Training Time": training_cost_time,
-                    "Loss": float(avg_loss)
+                    "Loss": float(avg_loss),
+                    "Training Time": training_time,
+                    "Total Time": cost_time
                 }
 
                 with open(self.log_dir, 'a+') as f:
@@ -338,8 +342,6 @@ class PFNL_null(VSR):
                     f.write('\n')
                 print("Log complete")
 
-                cost_time = time.time() - start_time
-                print('Training and evaluation cost {}s.'.format(cost_time))
                 start_time = time.time()
                 print("Timing restarted")
 

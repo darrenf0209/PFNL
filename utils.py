@@ -90,18 +90,36 @@ def automkdir(path):
 
 
 def end_lr_schedule(step):
-    switcher = {
-        150e3: 1e-4,
-        170e3: 0.5e-4,
-        190e3: 0.25e-4,
-        210e3: 0.1e-4,
-        230e3: 0.05e-4,
-        250e3: 0.025e-4,
-        270e3: 0.01e-4,
-        290e3: 0.005e-4,
-        300e3: 0.0025e-4
-    }
-    return switcher.get(step, "invalid")
+    if step < 150e3:
+        return 1e-4
+    elif 150e3 <= step < 170e3:
+        return 0.5e-4
+    elif 170e3 <= step < 190e3:
+        return 0.25e-4
+    elif 190e3 <= step < 210e3:
+        return 0.1e-4
+    elif 210e3 <= step < 230e3:
+        return 0.05e-4
+    elif 230e3 <= step < 250e3:
+        return 0.025e-4
+    elif 250e3 <= step < 270e3:
+        return 0.01e-4
+    elif 270e3 <= step < 290e3:
+        return 0.005e-4
+    else:
+        return 0.0025e-4
+# switcher = {
+#         150e3: 1e-4,
+#         170e3: 0.5e-4,
+#         190e3: 0.25e-4,
+#         210e3: 0.1e-4,
+#         230e3: 0.05e-4,
+#         250e3: 0.025e-4,
+#         270e3: 0.01e-4,
+#         290e3: 0.005e-4,
+#         300e3: 0.0025e-4
+#     }
+#     return switcher.get(step, "invalid")
 
 
 def get_num_params(vars):

@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'loss_test_20200814'
+NAME = 'Proposed_Mean_Loss_20200817'
 
 
 # Class holding all of the PFNL functions
@@ -214,13 +214,13 @@ class PFNL_alternative_2(VSR):
             ksizes=[1, 3, 3, 1],  # 3x3 kernel
             strides=[1, 1, 1, 1],  # Create a 3x3 patch for every pixel
             rates=[1, 1, 1, 1],  # go along every pixel
-            padding='SAME')  # only patches which are fully contained in the input image are included
+            padding='SAME')  # Patches outside the image are zero
 
         label_mean = tf.math.reduce_mean(label_patches, axis=-1)
         # random = tf.random.normal(H.shape[:4])
         random = tf.random.normal(tf.shape(label_mean))
-        print("Label_mean shape {}".format(label_mean.shape))
-        print("output img shape {}".format(output_img.shape))
+        # print("Label_mean shape {}".format(label_mean.shape))
+        # print("output img shape {}".format(output_img.shape))
         loss = tf.math.square(output_img[0, 0, :, :, color] - (label_mean - random))
         return loss
 
@@ -833,9 +833,9 @@ class PFNL_alternative_2(VSR):
                 print("Datapath: {}".format(k))
                 # The datapath is not needed as the files are located at variable k
                 # SR with HR as source
-                # self.test_video_truth(k, name=name, reuse=False, part=1000)
+                self.test_video_truth(k, name=name, reuse=False, part=1000)
                 # SR with LR as source
-                self.test_video_lr(k, name=name, reuse=False, part=1000)
+                # self.test_video_lr(k, name=name, reuse=False, part=1000)
                 # RNN
                 # self.test_video_memory(k, name=name, reuse=False, part=1000)
 

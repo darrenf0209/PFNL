@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'Proposed_Mean_Loss_20200817'
+NAME = 'Proposed_Mean_Loss_50_percent_20200901'
 
 
 # Class holding all of the PFNL functions
@@ -50,7 +50,7 @@ class PFNL_alternative_2(VSR):
         self.learning_rate = 0.2e-3
         self.end_lr = 1e-4
         self.reload = True
-        self.max_step = int(3e5 + 1)
+        self.max_step = int(2.5e5 + 1)
         self.decay_step = 1.2e5
         # Directories for training or validation images, saving checkpoints or logging information
         self.train_dir = './data/filelist_train.txt'
@@ -184,14 +184,15 @@ class PFNL_alternative_2(VSR):
         print("SR Train shape {}".format(tf.shape(SR_train)))
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
-        # loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
+        pixel_loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
 
         ###
         loss1 = self.loss_func(H, SR_train, 0)
         loss2 = self.loss_func(H, SR_train, 1)
         loss3 = self.loss_func(H, SR_train, 2)
-
-        self.loss = tf.reduce_mean(loss1 + loss2 + loss3)
+        proposed_loss = tf.reduce_mean(loss1 + loss2 + loss3)
+        weight = 0
+        self.loss = weight * pixel_loss + (1 - weight) * proposed_loss
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
         self.eval_mse = eval_mse
 
@@ -216,12 +217,19 @@ class PFNL_alternative_2(VSR):
             rates=[1, 1, 1, 1],  # go along every pixel
             padding='SAME')  # Patches outside the image are zero
 
-        label_mean = tf.math.reduce_mean(label_patches, axis=-1)
-        # random = tf.random.normal(H.shape[:4])
-        random = tf.random.normal(tf.shape(label_mean))
-        # print("Label_mean shape {}".format(label_mean.shape))
-        # print("output img shape {}".format(output_img.shape))
-        loss = tf.math.square(output_img[0, 0, :, :, color] - (label_mean - random))
+        ## Uncomment for mean + random
+        # label_mean = tf.math.reduce_mean(label_patches, axis=-1)
+        # # random = tf.random.normal(H.shape[:4])
+        # random = tf.random.normal(tf.shape(label_mean))
+        # # print("Label_mean shape {}".format(label_mean.shape))
+        # # print("output img shape {}".format(output_img.shape))
+        # loss = tf.math.square(output_img[0, 0, :, :, color] - (label_mean - random))
+
+        ## Random between min and max of patch
+        max_val = tf.reduce_max(label_patches, axis=-1)
+        min_val = tf.reduce_min(label_patches, axis=-1)
+        random = tf.random_uniform(tf.shape(min_val), minval=min_val, maxval=max_val)
+        loss = tf.math.square(output_img[0, 0, :, :, color] - random)
         return loss
 
     def eval(self):

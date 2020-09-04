@@ -579,8 +579,8 @@ class PFNL_alternative(VSR):
         cur_img = np.array(cv2_imread(imgs_arr[frames_foregone]))/255
 
         # Downsample to X
-        cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
-        cur_img_downsize = np.array(cur_img_downsize) / 255
+        # cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+        # cur_img_downsize = np.array(cur_img_downsize) / 255
 
         # Reading the previous HR image and splitting into tiles
         prev_img = cv2_imread(imgs_arr[frames_foregone - 1])
@@ -594,11 +594,12 @@ class PFNL_alternative(VSR):
         prev_bottom_left = np.array(prev_bottom_left) / 255
         prev_top_right = np.array(prev_top_right) / 255
         prev_bottom_right = np.array(prev_bottom_right) / 255
+        print("Shape tile: ",prev_bottom_right.shape)
 
         # 5 lots of X, which now needed to be passed into the network
-        first_batch.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
+        # first_batch.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
         # first_batch.extend([prev_top_left, prev_bottom_left, cur_img, prev_top_right, prev_bottom_right])
-        first_batch = np.array(first_batch)
+        # first_batch = np.array(first_batch)
 
 
         if part > num_frames:
@@ -645,9 +646,9 @@ class PFNL_alternative(VSR):
         # lrs = self.sess.run(first_batch_tensor, feed_dict={self.img_hr: first_batch}, options=run_options)
         print("lrs shape: {}".format(lrs.shape))
         lr_list = []
-        lrs = np.expand_dims(lrs, 0)
-        print('Save at {}'.format(save_path))
-        print('{} Inputs With Shape {}'.format(lrs.shape[0], lrs.shape[1:]))
+        # lrs = np.expand_dims(lrs, 0)
+        # print('Save at {}'.format(save_path))
+        # print('{} Inputs With Shape {}'.format(lrs.shape[0], lrs.shape[1:]))
 
         # Performing VSR and saving images
         all_time = []
@@ -655,7 +656,7 @@ class PFNL_alternative(VSR):
         run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
         # print('Num_once: {}'.format(num_once))
         # print("Lr_list index: {}:{}".format(i * num_once, (i + 1) * num_once))
-        batch_trial = np.stack((prev_top_left, prev_bottom_left, lrs[0, 0], prev_top_right, prev_bottom_right))
+        batch_trial = np.stack((prev_top_left, prev_bottom_left, lrs[0], prev_top_right, prev_bottom_right), axis=0)
 
         # sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(first_batch, 0)}, options=run_options)
         # sr = self.sess.run(SR_test, feed_dict={L_test: lrs}, options=run_options)
@@ -675,41 +676,43 @@ class PFNL_alternative(VSR):
 
         # Pass the output back into the network!
 
-        # for i in trange(part - 2 * frames_foregone - 1):
-        #     new_batch = []
-        #
-        #     # Tile the output image in preparation for feedback
-        #     img_top_left = img[0: h // 2, 0: w // 2]
-        #     img_bottom_left = img[h // 2: h, 0: w // 2]
-        #     img_top_right = img[0: h // 2, w // 2: w]
-        #     img_bottom_right = img[h // 2: h, w // 2: w]
-        #     img_top_left = np.array(img_top_left) / 255
-        #     img_bottom_left = np.array(img_bottom_left) / 255
-        #     img_top_right = np.array(img_top_right) / 255
-        #     img_bottom_right = np.array(img_bottom_right) / 255
-        #
-        #     cur_img = cv2_imread(imgs_arr[frames_foregone+i])
-        #     cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
-        #     # Downsample to X
-        #     cur_img_downsize = np.array(cur_img_downsize) / 255
-        #
-        #     # new_batch.extend([img_top_left, img_bottom_left, cur_img_downsize, img_top_right, img_bottom_right])
-        #     # new_batch = np.array(new_batch)
-        #
-        #     new_batch.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
-        #     new_batch = np.array(new_batch)
-        #
-        #     lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: new_batch}, options=run_options)
-        #     sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(lrs, 0)}, options=run_options)
-        #
-        #     # sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(new_batch, 0)}, options=run_options)
-        #     # all_time.append(time.time() - st_time)
-        #     for j in range(sr.shape[0]):
-        #         img = sr[j][0] * 255.
-        #         img = np.clip(img, 0, 255)
-        #         img = np.round(img, 0).astype(np.uint8)
-        #         # Name of saved file. This should match the 'truth' format for easier analysis in future.
-        #         cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i)), img)
+        for i in trange(part - 2 * frames_foregone - 1):
+            new_batch = []
+
+            # Tile the output image in preparation for feedback
+            img_top_left = img[0: h // 2, 0: w // 2]
+            img_bottom_left = img[h // 2: h, 0: w // 2]
+            img_top_right = img[0: h // 2, w // 2: w]
+            img_bottom_right = img[h // 2: h, w // 2: w]
+            img_top_left = np.array(img_top_left) / 255
+            img_bottom_left = np.array(img_bottom_left) / 255
+            img_top_right = np.array(img_top_right) / 255
+            img_bottom_right = np.array(img_bottom_right) / 255
+
+            cur_img = np.array(cv2_imread(imgs_arr[frames_foregone+i])) / 255
+            # cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+            # Downsample to X
+            # cur_img_downsize = np.array(cur_img_downsize) / 255
+
+            # new_batch.extend([img_top_left, img_bottom_left, cur_img_downsize, img_top_right, img_bottom_right])
+            # new_batch = np.array(new_batch)
+
+            # new_batch.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
+            # new_batch = np.array(new_batch)
+
+            lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: np.expand_dims(cur_img, 0)}, options=run_options)
+            batch_trial = np.stack((img_top_left, img_bottom_left, lrs[0], img_top_right, img_bottom_right))
+
+            sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(batch_trial, 0)}, options=run_options)
+
+            # sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(new_batch, 0)}, options=run_options)
+            # all_time.append(time.time() - st_time)
+            for j in range(sr.shape[0]):
+                img = sr[j][0] * 255.
+                img = np.clip(img, 0, 255)
+                img = np.round(img, 0).astype(np.uint8)
+                # Name of saved file. This should match the 'truth' format for easier analysis in future.
+                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i)), img)
 
 
 

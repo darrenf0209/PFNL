@@ -29,7 +29,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ''' 
 This is a modified version of PFNL by Darren Flaks.
 '''
-NAME = 'Proposed_Mean_Loss_50_percent_20200901'
+NAME = 'Weighted_Pixel_Loss_Mean_Loss_50_50_20200903'
 
 
 # Class holding all of the PFNL functions
@@ -185,13 +185,19 @@ class PFNL_alternative_2(VSR):
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
         pixel_loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
+        print("Pixel loss shape: {}".format(pixel_loss.shape))
 
         ###
         loss1 = self.loss_func(H, SR_train, 0)
         loss2 = self.loss_func(H, SR_train, 1)
         loss3 = self.loss_func(H, SR_train, 2)
+        print("Shape of each loss channel: {}".format(loss1.shape))
         proposed_loss = tf.reduce_mean(loss1 + loss2 + loss3)
-        weight = 0
+        print("Shape of combined proposed loss: {}".format((loss1+loss2+loss3).shape))
+        print("Shape of mean proposed loss: {}".format(proposed_loss.shape))
+
+        # print("Total proposed loss: {}".format(tf.keras.backend.eval(proposed_loss[0, 0, 0:5])))
+        weight = 0.5
         self.loss = weight * pixel_loss + (1 - weight) * proposed_loss
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
         self.eval_mse = eval_mse
@@ -218,18 +224,18 @@ class PFNL_alternative_2(VSR):
             padding='SAME')  # Patches outside the image are zero
 
         ## Uncomment for mean + random
-        # label_mean = tf.math.reduce_mean(label_patches, axis=-1)
-        # # random = tf.random.normal(H.shape[:4])
-        # random = tf.random.normal(tf.shape(label_mean))
-        # # print("Label_mean shape {}".format(label_mean.shape))
-        # # print("output img shape {}".format(output_img.shape))
-        # loss = tf.math.square(output_img[0, 0, :, :, color] - (label_mean - random))
+        label_mean = tf.math.reduce_mean(label_patches, axis=-1)
+        # random = tf.random.normal(H.shape[:4])
+        random = tf.random.normal(tf.shape(label_mean))
+        # print("Label_mean shape {}".format(label_mean.shape))
+        # print("output img shape {}".format(output_img.shape))
+        loss = tf.math.square(output_img[0, 0, :, :, color] - (label_mean - random))
 
         ## Random between min and max of patch
-        max_val = tf.reduce_max(label_patches, axis=-1)
-        min_val = tf.reduce_min(label_patches, axis=-1)
-        random = tf.random_uniform(tf.shape(min_val), minval=min_val, maxval=max_val)
-        loss = tf.math.square(output_img[0, 0, :, :, color] - random)
+        # max_val = tf.reduce_max(label_patches, axis=-1)
+        # min_val = tf.reduce_min(label_patches, axis=-1)
+        # random = tf.random_uniform(tf.shape(min_val), minval=min_val, maxval=max_val)
+        # loss = tf.math.square(output_img[0, 0, :, :, color] - random)
         return loss
 
     def eval(self):
@@ -712,6 +718,7 @@ class PFNL_alternative_2(VSR):
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
+        # blurred_path = join(path, 'blur4')
         blurred_path = join(path, 'truth_downsize_4')
         truth_path = join(path, 'truth')
         # inp_path=join(path,'truth_downsize_4')
@@ -841,9 +848,9 @@ class PFNL_alternative_2(VSR):
                 print("Datapath: {}".format(k))
                 # The datapath is not needed as the files are located at variable k
                 # SR with HR as source
-                self.test_video_truth(k, name=name, reuse=False, part=1000)
+                # self.test_video_truth(k, name=name, reuse=False, part=1000)
                 # SR with LR as source
-                # self.test_video_lr(k, name=name, reuse=False, part=1000)
+                self.test_video_lr(k, name=name, reuse=False, part=1000)
                 # RNN
                 # self.test_video_memory(k, name=name, reuse=False, part=1000)
 

@@ -667,14 +667,16 @@ class PFNL_null(VSR):
 
         # Pass the output back into the network!
 
-        for i in trange(part - 2 * frames_foregone - 1):
+        # for i in trange(part - 2 * frames_foregone - 1):
+        for i in range(2, part):
             new_batch = []
 
             # Tile the output image in preparation for feedback
             output_img = np.array(img) / 255
 
 
-            cur_img = np.array(cv2_imread(imgs_arr[frames_foregone+i])) / 255
+            # cur_img = np.array(cv2_imread(imgs_arr[frames_foregone+i])) / 255
+            cur_img = np.array(cv2_imread(imgs_arr[i])) / 255
 
 
             new_batch.extend([output_img, cur_img])
@@ -690,7 +692,8 @@ class PFNL_null(VSR):
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
                 # Name of saved file. This should match the 'truth' format for easier analysis in future.
-                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i)), img)
+                # cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i)), img)
+                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i)), img)
 
     '''
     This function accepts video frames of low quality and

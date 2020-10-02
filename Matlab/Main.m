@@ -1,9 +1,10 @@
 % Super-resolution scale
 scale=2;
 % Testing dataset directory
-fpath = 'C:\Users\darre\OneDrive\Documents\GitHub\PFNL\test\vid4\';
+fpath = 'C:\Users\darre\OneDrive\Documents\GitHub\PFNL\test\udm10\';
 % Model name
-model='alternative_3_20200528_best';
+model='alt_only_cur_downsize_20200904_output_feedback_20200909';
+frames_foregone = 5;
 
 fid=fopen(strcat(fpath,model,'.txt'),'wt');
 fprintf(fid,'{\n');
@@ -33,7 +34,8 @@ for j = 1:length(list0)
     fprintf(fid,strcat('\"',list0(j).name,'\": {\n'));
     fprintf(fid,'\"frame\": [\n{');
     % Skip the first and last frame
-    for i=1+2:length(list1)-2
+    for i=2:length(list1)-1
+%         fprintf('%d\n', i + frames_foregone - 1)
         index=index+1;
         img1_name=list1(i).name;
         img1=imread(strcat(path1,img1_name));
@@ -58,10 +60,11 @@ for j = 1:length(list0)
 %         fprintf('%d %f\n',i,psnr);
         ssim=SSIM(img1,img2);
         sum_s=sum_s+ssim; 
+%         fprintf(fid, strcat('\"%d\":[%g,%g]'),i + frames_foregone - 1, psnr, ssim);
         if i == length(list1)-2
-            fprintf(fid, strcat('\"%d\":[%g,%g]'),i+5, psnr, ssim);
+            fprintf(fid, strcat('\"%d\":[%g,%g]'),i + frames_foregone - 1, psnr, ssim);
         else
-            fprintf(fid, strcat('\"%d\":[%g,%g],'),i+5, psnr, ssim);
+            fprintf(fid, strcat('\"%d\":[%g,%g],'),i + frames_foregone - 1, psnr, ssim);
         end
 %         fprintf('%d %f\n',i,ssim);
     end

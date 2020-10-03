@@ -21,3 +21,6 @@ pfnl.txt
 training_log.txt
 /test/*.txt
 /tb_graph/*
+
+# Results
+/report/*

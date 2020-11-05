@@ -5,9 +5,6 @@ import glob
 import math
 import matplotlib.pyplot as plt
 
-
-
-
 # Append each JSON object from log file reading line by line
 def append_logs(log_file):
     logs = []
@@ -231,10 +228,10 @@ def multiscatter(x, y, names, colors):
     plt.legend(loc='lower right')
     plt.show()
 
-save_path = 'report/obj2/'
+save_path = 'report/obj3/'
 if not os.path.exists(save_path):
     os.makedirs(save_path)
-logs_path = 'logs/obj2/'
+logs_path = 'logs/logs_clean/obj3'
 model_names = retrieve_model_names(logs_path)
 print(model_names)
 log_files = sorted(glob.glob(os.path.join(logs_path, '*.txt')))
@@ -277,15 +274,15 @@ for i in sorted(dict_logs.keys()):
 # print(cumulative_times)
 # orange, green
 colors = ['#FF8300', '#CD7A21', '#B2712C', '#32FF00', '#45C425', '#469332', '#00FFE8', '#2ACBBC', '#429890', '#0093FF', '#3485C0', '#417092', '#C100FF', '#9636B5', '#885E95']
-# multiplot(arr_of_iters, arr_of_PSNRs, model_names, colors)
-# multiscatter(cumulative_times, max_PSNRs, model_names, colors)
+multiplot(arr_of_iters, arr_of_PSNRs, model_names, colors)
+multiscatter(cumulative_times, max_PSNRs, model_names, colors)
 
-# alt_sum_mean = (arr_of_PSNRs[0] + arr_of_PSNRs[1][1:500] + arr_of_PSNRs[2][1:500]) / 3
-# control_3_mean = (arr_of_PSNRs[3][1:500] + arr_of_PSNRs[4][1:500]  + arr_of_PSNRs[5][1:500] ) / 3
-# control_5_mean = (arr_of_PSNRs[6][1:500]  + arr_of_PSNRs[7][1:500]  + arr_of_PSNRs[8][1:500] ) / 3
-# control_7_mean = (arr_of_PSNRs[9][1:500]  + arr_of_PSNRs[10][1:500] + arr_of_PSNRs[11][1:500] ) / 3
-# null_mean = (arr_of_PSNRs[12][1:500]  + arr_of_PSNRs[13][1:500]  + arr_of_PSNRs[14][1:500] ) / 3
-# multiplot_arr = [alt_sum_mean, control_3_mean, control_5_mean, control_7_mean, null_mean]
-# colors = ['#FF8300', '#32FF00', '#00FFE8', '#0093FF', '#C100FF']
-# model_names = ['Alternative', 'Control 3', 'Control 5', 'Control 7', 'Null']
-# multiplot(multiplot_arr, model_names, colors)
+alt_sum_mean = (arr_of_PSNRs[0] + arr_of_PSNRs[1][1:500] + arr_of_PSNRs[2][1:500]) / 3
+control_3_mean = (arr_of_PSNRs[3][1:500] + arr_of_PSNRs[4][1:500]  + arr_of_PSNRs[5][1:500] ) / 3
+control_5_mean = (arr_of_PSNRs[6][1:500]  + arr_of_PSNRs[7][1:500]  + arr_of_PSNRs[8][1:500] ) / 3
+control_7_mean = (arr_of_PSNRs[9][1:500]  + arr_of_PSNRs[10][1:500] + arr_of_PSNRs[11][1:500] ) / 3
+null_mean = (arr_of_PSNRs[12][1:500]  + arr_of_PSNRs[13][1:500]  + arr_of_PSNRs[14][1:500] ) / 3
+multiplot_arr = [alt_sum_mean, control_3_mean, control_5_mean, control_7_mean, null_mean]
+colors = ['#FF8300', '#32FF00', '#00FFE8', '#0093FF', '#C100FF']
+model_names = ['Alternative', 'Control 3', 'Control 5', 'Control 7', 'Null']
+multiplot(multiplot_arr, model_names, colors)

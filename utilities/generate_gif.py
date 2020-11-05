@@ -3,7 +3,7 @@ import glob
 
 '''
 This is a simple script to generate a gif by passing in a path of frames in order. 
-Pass in a path to rertieve the images and save the file with approrpiate name.
+Pass in a path to retrieve the images and save the file with appropriate name.
 '''
 # Create the frames
 frames = []

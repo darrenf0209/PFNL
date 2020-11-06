@@ -1,19 +1,14 @@
 import os
 import tensorflow as tf
-import sys
-from tensorflow.python.ops import control_flow_ops
-from os.path import join, exists
+from os.path import join
 import glob
-import random
 import numpy as np
-from PIL import Image
-import scipy
 import cv2
 import json
 import time
-from tensorflow.python.layers.convolutional import Conv2D, conv2d
+from tensorflow.python.layers.convolutional import Conv2D
 from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, cv2_imread, cv2_imsave, automkdir, end_lr_schedule
-from tqdm import tqdm, trange
+from tqdm import trange
 from model.base_model import VSR
 # TensorFlow back-compatability
 import tensorflow.compat.v1 as tf
@@ -27,15 +22,15 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ########################################################
 
 ''' 
-This is a modified version of PFNL by Darren Flaks.
+This is the Null model which utilises the previous and current frame as LR.
 '''
-NAME = 'null_3_20200529'
 
-# Class holding all of the PFNL functions
+NAME = 'null_model'
+
+# Instantiation of the Null model
 class PFNL_null(VSR):
     def __init__(self):
-        # Initialize variables with respect to images, training, evaluating and directory locations
-        # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
+        # number of input frames to the network
         self.num_frames = 2
         self.scale = 2
         self.in_size = 32
@@ -48,14 +43,18 @@ class PFNL_null(VSR):
         self.end_lr = 1e-4
         self.reload = True
         # Number of iterations for training
-        self.max_step = int(3e5 + 1)
+        self.max_step = int(2.5e5 + 1)
         self.decay_step = 1.2e5
+        # Directories for training or validation images, saving checkpoints or logging information
         self.train_dir = './data/filelist_train.txt'
         self.eval_dir = './data/filelist_val.txt'
         self.save_dir = './checkpoint/{}'.format(NAME)
         self.log_dir = './logs/{}.txt'.format(NAME)
         self.test_dir = './test/{}_test_time.txt'.format(NAME)
 
+    ''' 
+    Forward pass of the network
+    '''
     def forward(self, x):
         # Filters: dimensionality of output space
         # Based on PFS-PS, set the convolutional layer filter as 64
@@ -164,6 +163,10 @@ class PFNL_null(VSR):
         # HR estimate output
         return tf.stack([out + bic], axis=1, name='out')
 
+
+    '''
+    Network constructor with forward pass and computing loss
+    '''
     def build(self):
         in_h, in_w = self.eval_in_size
         # H is the corresponding HR centre frame
@@ -183,6 +186,12 @@ class PFNL_null(VSR):
         self.loss, self.eval_mse = loss, eval_mse
         self.L, self.L_eval, self.H, self.SR = L_train, L_eval, H, SR_train
 
+
+    '''
+    Evaluation step for the network.
+    Computes the PSNR over the validation video sequences.
+    Occurs every 500 iterations during training, by default.
+    '''
     def eval(self):
         print('Evaluating ...')
         if not hasattr(self, 'sess'):
@@ -210,15 +219,10 @@ class PFNL_null(VSR):
         mse_acc = None
         for gtlist in gt_list:
             max_frame = len(gtlist)
-            # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
                 index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
-                # print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
-                # print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
-                # print("Original shape: {}".format(gt[0].shape))
-                # Resizing images by half
                 height = gt[0].shape[0]
                 width = gt[0].shape[1]
                 gt = [cv2.resize(gt[i], (width // 2, height // 2), interpolation=cv2.INTER_AREA) for i in range(len(gt))]
@@ -235,9 +239,6 @@ class PFNL_null(VSR):
                     mse_val = sess.run(self.eval_mse,
                                        feed_dict={self.L_eval: batch_lr,
                                                   self.H: batch_gt[:, self.num_frames // 2:self.num_frames // 2 + 1]})
-                    # print("Batch LR {}".format(batch_lr))
-                    # print("Batch gt {}".format(batch_gt))
-                    # print("MSE Value: {}".format(mse_val))
                     if mse_acc is None:
                         mse_acc = mse_val
                     else:
@@ -245,8 +246,8 @@ class PFNL_null(VSR):
                     batch_gt = []
                     print('\tEval batch {} - {} ...'.format(batch_cnt, batch_cnt + self.eval_basz))
                     batch_cnt += self.eval_basz
-                    # print("MSE Acc: {}".format(mse_acc))
 
+        # Compute PSNR and MSE from evaluation batch
         psnr_acc = 10 * np.log10(1.0 / mse_acc)
         mse_avg = np.mean(mse_acc, axis=0)
         psnr_avg = np.mean(psnr_acc, axis=0)
@@ -257,6 +258,11 @@ class PFNL_null(VSR):
         psnr_avg = (psnr_avg * 1e6).astype(np.int64) / (1e6)
         return mse_avg.tolist(), psnr_avg.tolist()
 
+
+    '''
+    Training loop. Retrieves the pre-processed data from base_model.py.
+    Logs results from training for further analysis.
+    '''
     def train(self):
         print("Training begin")
         LR, HR = self.null_pipeline()
@@ -271,16 +277,12 @@ class PFNL_null(VSR):
         print("learning rate lr: {}".format(lr))
 
         vars_all = tf.trainable_variables()
-        # This print statement throws error: 'int' object has not attribute 'value'
-        # print('Params num of all:',get_num_params(vars_all))
 
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
         # TF configures the session
         config = tf.ConfigProto(gpu_options=gpu_options)
         # Attempt to allocate only as much GPU memory based on runtime allocations
-        # Allocatee little memory, and as Sessions continues to run, more GPU memory is provided
-
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         # sess=tf.Session()
@@ -309,8 +311,6 @@ class PFNL_null(VSR):
                 print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Step:{}, loss:{}'.format(step, loss_v))
                 losses.append(loss_v)
 
-                # LR, HR = self.null_pipeline()
-
             if (time.time() - start_time) > 5 and step % 500 == 0:
                 print("Saving checkpoint")
                 # if step > gs:
@@ -326,6 +326,7 @@ class PFNL_null(VSR):
                 cost_time = time.time() - start_time
                 print('Training and evaluation cost {}s.'.format(cost_time))
 
+                # Log all information of interest
                 log_dict = {
                     "Date": time.strftime("%Y-%m-%d", time.localtime()),
                     "Time": time.strftime("%H:%M:%S", time.localtime()),
@@ -337,6 +338,7 @@ class PFNL_null(VSR):
                     "Total Time": cost_time
                 }
 
+                # Write log text file
                 with open(self.log_dir, 'a+') as f:
                     f.write(json.dumps(log_dict))
                     f.write('\n')
@@ -455,116 +457,17 @@ class PFNL_null(VSR):
                 f.write('\n')
             print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
 
-    # def test_video_memory(self, path, name='result', reuse=True, part=50):
-    #     save_path = join(path, name)
-    #     print("Save Path: {}".format(save_path))
-    #     # Create the save path directory if it does not exist
-    #     automkdir(save_path)
-    #     inp_path = join(path, 'truth')
-    #     print("Input Path: {}".format(inp_path))
-    #     imgs_arr = sorted(glob.glob(join(inp_path, '*.png')))
-    #     print("Image set: {}".format(imgs_arr))
-    #     max_frame = len(imgs_arr)
-    #     print("Number of frames: {}".format(max_frame))
-    #
-    #     if part > max_frame:
-    #         part = max_frame
-    #     if max_frame % part == 0:
-    #         num_once = max_frame // part
-    #     else:
-    #         num_once = max_frame // part + 1
-    #
-    #     truth_dim = np.array(cv2_imread(imgs_arr[0]))/255
-    #     h, w, c = truth_dim.shape
-    #     all_imgs_halved = []
-    #     for i in range(len(imgs_arr)):
-    #         img = cv2_imread(imgs_arr[i])
-    #         img = cv2.resize(img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
-    #         img = np.array(img) / 255
-    #         all_imgs_halved.append(img)
-    #
-    #     L_test = tf.placeholder(tf.float32,
-    #                             shape=[num_once, self.num_frames, h // (2 * self.scale), w // (2 * self.scale), 3],
-    #                             name='L_test')
-    #     SR_test = self.forward(L_test)
-    #     if not reuse:
-    #         self.img_hr = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='H_truth')
-    #         self.img_lr = DownSample_4D(self.img_hr, BLUR, scale=self.scale)
-    #         print("img_lr: {}".format(self.img_lr))
-    #         config = tf.ConfigProto()
-    #         # Allow growth attempts to allocate only as much GPU memory based on runtime allocations
-    #         config.gpu_options.allow_growth = True
-    #         # config.gpu_options.per_process_gpu_memory_fraction = 0.2
-    #         sess = tf.Session(config=config)
-    #         # sess=tf.Session()
-    #         self.sess = sess
-    #         sess.run(tf.global_variables_initializer())
-    #         self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
-    #         self.load(sess, self.save_dir)
-    #     run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-    #     lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: all_imgs_halved}, options=run_options)
-    #     lr_list = []
-    #     max_frame = lrs.shape[0]
-    #     frames_foregone = 5
-    #     for i in range(frames_foregone, max_frame - frames_foregone):
-    #         index = np.array([i for i in range(i - self.num_frames + 1, i + 1)])
-    #         # print("index: {}".format(index))
-    #         index = np.clip(index, 0, max_frame - 1).tolist()
-    #         print("index: {}".format(index))
-    #         lr_list.append(np.array([lrs[j] for j in index]))
-    #     lr_list = np.array(lr_list)
-    #
-    #     print('Save at {}'.format(save_path))
-    #     print('{} Inputs With Shape {}'.format(lrs.shape[0], lrs.shape[1:]))
-    #     h, w, c = lrs.shape[1:]
-    #
-    #     all_time = []
-    #     # SR on first image
-    #     st_time = time.time()
-    #     run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-    #     sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[frames_foregone:frames_foregone+1]},
-    #                        options=run_options)
-    #     all_time.append(time.time() - st_time)
-    #     for j in range(sr.shape[0]):
-    #         img = sr[j][0] * 255.
-    #         img = np.clip(img, 0, 255)
-    #         img = np.round(img, 0).astype(np.uint8)
-    #         # Name of saved file. This should match the 'truth' format for easier analysis in future.
-    #         cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone)), img)
-    #
-    #
-    #     print(img.shape, all_imgs_halved[frames_foregone+1].shape)
-    #     new_list = [img, all_imgs_halved[frames_foregone + 1]]
-    #     cv2.imshow("HR estimate(prev)", img)
-    #     cv2.imshow("Current LR", all_imgs_halved[frames_foregone+1])
-    #     cv2.waitKey(0)
-    #     cv2.destroyAllWindows()
-    #
-    #
-    #     # lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: new_list}, options=run_options)
-    #     # lrs = np.expand_dims(lrs, 0)
-    #     # print(lrs.shape)
-    #     #
-    #     # sr = self.sess.run(SR_test, feed_dict={L_test: lrs[0:1]},
-    #     #                    options=run_options)
-    #     # all_time.append(time.time() - st_time)
-    #     # for j in range(sr.shape[0]):
-    #     #     img = sr[j][0] * 255.
-    #     #     img = np.clip(img, 0, 255)
-    #     #     img = np.round(img, 0).astype(np.uint8)
-    #     #     # Name of saved file. This should match the 'truth' format for easier analysis in future.
-    #     #     cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone+1)), img)
-    #
-    #     all_time = np.array(all_time)
-    #     print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
-    def test_video_memory(self, path, name='memory_result', reuse=True, part=50):
+
+    '''
+    This function implements information recycling. 
+    After creating the first HR frame, it passes it back into the network as an input to predict the next frame.
+    '''
+    def information_recycling(self, path, name='memory_result', reuse=True, part=50):
         save_path = join(path, name)
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
-        # 4X
-        # inp_path = join(path, 'truth')
-        # 2X
+        # 2X to avoid GPU OOM
         inp_path = join(path, 'truth_downsize_2')
         # print("Input Path: {}".format(inp_path))
         imgs_arr = sorted(glob.glob(join(inp_path, '*.png')))
@@ -590,9 +493,6 @@ class PFNL_null(VSR):
         prev_img = np.array(cv2_imread(imgs_arr[frames_foregone - 1])) / 255
         first_batch = np.stack((prev_img, cur_img), axis=0)
 
-
-
-
         if part > num_frames:
             part = num_frames
         if num_frames % part == 0:
@@ -600,11 +500,6 @@ class PFNL_null(VSR):
         else:
             num_once = num_frames // part + 1
 
-        # Dimensions being passed into the network!
-        # L_test = tf.placeholder(tf.float32,
-        #                         shape=[num_once, (self.num_frames + 3), h // (2 * self.scale), w // (2 * self.scale),
-        #                                3],
-        #                         name='L_test')
         L_test = tf.placeholder(tf.float32,
                                 shape=[num_once, self.num_frames, h // self.scale, w // self.scale,
                                        3],
@@ -645,12 +540,6 @@ class PFNL_null(VSR):
         all_time = []
         st_time = time.time()
         run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-        # print('Num_once: {}'.format(num_once))
-        # print("Lr_list index: {}:{}".format(i * num_once, (i + 1) * num_once))
-        # batch_trial = np.stack((prev_top_left, prev_bottom_left, lrs[0, 0], prev_top_right, prev_bottom_right))
-
-        # sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(first_batch, 0)}, options=run_options)
-        # sr = self.sess.run(SR_test, feed_dict={L_test: lrs}, options=run_options)
 
         sr = self.sess.run(SR_test, feed_dict={L_test: lrs}, options=run_options)
         print('sr output shape: {}'.format(sr.shape))
@@ -663,8 +552,6 @@ class PFNL_null(VSR):
             cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone)), img)
 
         # all_time = np.array(all_time)
-
-
         # Pass the output back into the network!
 
         # for i in trange(part - 2 * frames_foregone - 1):
@@ -696,8 +583,10 @@ class PFNL_null(VSR):
                 cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(i)), img)
 
     '''
-    This function accepts video frames of low quality and
-    passes them through the network to perform 2xSR
+    This function does not down-scale input frames further.
+    Passes frames through the network to perform 2xSR.
+    This is a genuine form of super-resolution, which generally performs very poorly.
+    Supervised learning limitation.
     '''
 
     def test_video_lr(self, path, name='result', reuse=False, part=50):
@@ -769,7 +658,11 @@ class PFNL_null(VSR):
             all_time = np.array(all_time)
             print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
 
-    # Default path written by authors
+
+    '''
+    General testing function which calls the corresponding method. 
+    Can either pass in frames with learned down-sampling, no learned down-sampling or information recycling
+    '''
     def testvideos(self, path='/dev/f/data/video/test2/udm10', start=0, name='pfnl'):
         kind = sorted(glob.glob(join(path, '*')))
         print("kind: {}".format(kind))
@@ -783,13 +676,12 @@ class PFNL_null(VSR):
                     reuse = True
                 # datapath=join(path,k)
                 print("Datapath: {}".format(k))
-                # The datapath is not needed as the files are located at variable k
-                # SR with HR as source
+                # Learned down-sampling
                 # self.test_video_truth(k, name=name, reuse=False, part=1000)
-                # SR with LR as source
+                # No learned down-sampling
                 # self.test_video_lr(k, name=name, reuse=False, part=1000)
-                # RNN
-                self.test_video_memory(k, name=name, reuse=False, part=1000)
+                # Information recycling
+                self.information_recycling(k, name=name, reuse=False, part=1000)
 
 
 if __name__ == '__main__':

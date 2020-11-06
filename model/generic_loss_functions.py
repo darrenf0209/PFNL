@@ -8,7 +8,7 @@ import json
 import time
 from tensorflow.python.layers.convolutional import Conv2D
 from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, cv2_imread, cv2_imsave, automkdir, end_lr_schedule
-from tqdm import trange
+from tqdm import tqdm, trange
 from model.base_model import VSR
 # TensorFlow back-compatability
 import tensorflow.compat.v1 as tf
@@ -22,14 +22,14 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ########################################################
 
 ''' 
-This is the Alternative model which utilises the previous frame as HR and current frame as LR.
+This is the Alternative model which utilises the previous frame as HR and current frame as LR. 
+This script, however, makes use of generic loss functions. It is otherwise very similar.
 '''
+NAME = 'generic_loss_model'
 
-NAME = 'alternative_model'
 
-
-# Instantiation of the Alternative model
-class PFNL_alternative(VSR):
+# Instantiation of the Alternative model with generic loss functions
+class PFNL_generic_loss_functions(VSR):
     def __init__(self):
         # number of input frames to the network
         self.num_frames = 2
@@ -117,11 +117,11 @@ class PFNL_alternative(VSR):
             # 5x5 convolutional step, before entering the PFRB
             inp0 = [conv0(f) for f in inp0]
             # print("inp0 conv0: {}".format(inp0))
-            # Current frame is in middle of batch
-            bic = tf.image.resize_images(x[:, (self.num_frames + 3) // 2, :, :, :], [w * self.scale, h * self.scale],
+            # Last frame is the current frame (causal system)
+            # bic = tf.image.resize_images(x[:, -1, :, :, :], [w * self.scale, h * self.scale], method=2)
+            bic = tf.image.resize_images(x[:, self.num_frames // 2 + 1, :, :, :], [w * self.scale, h * self.scale],
                                          method=2)
-            print("x shape: {}".format(x.shape))
-            print("bic shape: {}".format(bic.shape))
+            # print("bic: {}".format(bic))
 
             # After the 5x5 conv layer, add in the num_blocks of PFRBs to make full extraction of both
             # inter-frame and temporal correlations among multiple LR frames
@@ -184,14 +184,76 @@ class PFNL_alternative(VSR):
         L_eval = tf.placeholder(tf.float32, shape=[self.eval_basz, (self.num_frames + 3), in_h, in_w, 3], name='L_eval')
         # SR denotes the function of the super-resolution network
         SR_train = self.forward(L_train)
+        print("L Train shape {}".format(tf.shape(L_train)))
+        print("SR Train shape {}".format(tf.shape(SR_train)))
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
-        loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
+        pixel_loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
+        print("Pixel loss shape: {}".format(pixel_loss.shape))
 
-        # Evaluate mean squared error
+        # Generic loss functions
+        # Either random within patch of mean + gaussian noise
+        loss1 = self.loss_func(H, SR_train, 0)
+        loss2 = self.loss_func(H, SR_train, 1)
+        loss3 = self.loss_func(H, SR_train, 2)
+        print("Shape of each loss channel: {}".format(loss1.shape))
+        proposed_loss = tf.reduce_mean(loss1 + loss2 + loss3)
+        print("Shape of combined proposed loss: {}".format((loss1+loss2+loss3).shape))
+        print("Shape of mean proposed loss: {}".format(proposed_loss.shape))
+
+        # print("Total proposed loss: {}".format(tf.keras.backend.eval(proposed_loss[0, 0, 0:5])))
+        weight = 0.5
+        self.loss = weight * pixel_loss + (1 - weight) * proposed_loss
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
-        self.loss, self.eval_mse = loss, eval_mse
+        self.eval_mse = eval_mse
+
         self.L, self.L_eval, self.H, self.SR = L_train, L_eval, H, SR_train
+
+
+    '''
+    This is the function for the generic loss functions tested.
+    
+    Algorithm 1: Mean + Gaussian Noise of 3x3 patches
+    For each colour channel and each pixel:
+        Extract 3x3 patches
+        Compute the mean of each patch
+        Add Gausian randomness
+        Loss is the squared difference between truth and the mean + Gaussian noise of each patch
+        
+        
+    Algorithm 2: Random within 3x3 patches
+    For each colour channel and each pixel:
+        Extract 3x3 patches
+        Find a random number between the min and max of each patch
+        Loss is the squared difference between truth and the random value of each patch
+            
+    '''
+    def loss_func(self, H, output_img, color):
+
+        # Label patches along single color dimension
+        label_img_c = H[0, :, :, :, color]
+        label_img_c = tf.expand_dims(label_img_c, axis=-1)
+        label_patches = tf.extract_image_patches(
+            images=label_img_c,  # one color channel at a time
+            ksizes=[1, 3, 3, 1],  # 3x3 kernel
+            strides=[1, 1, 1, 1],  # Create a 3x3 patch for every pixel
+            rates=[1, 1, 1, 1],  # go along every pixel
+            padding='SAME')  # Patches outside the image are zero
+
+        ## Mean + random
+        label_mean = tf.math.reduce_mean(label_patches, axis=-1)
+        # random = tf.random.normal(H.shape[:4])
+        random = tf.random.normal(tf.shape(label_mean))
+        # print("Label_mean shape {}".format(label_mean.shape))
+        # print("output img shape {}".format(output_img.shape))
+        loss = tf.math.square(output_img[0, 0, :, :, color] - (label_mean - random))
+
+        ## Random value between min and max of patch
+        # max_val = tf.reduce_max(label_patches, axis=-1)
+        # min_val = tf.reduce_min(label_patches, axis=-1)
+        # random = tf.random_uniform(tf.shape(min_val), minval=min_val, maxval=max_val)
+        # loss = tf.math.square(output_img[0, 0, :, :, color] - random)
+        return loss
 
 
     '''
@@ -225,7 +287,6 @@ class PFNL_alternative(VSR):
         mse_acc = None
         for gtlist in gt_list:
             max_frame = len(gtlist)
-            # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
                 index = np.array([i for i in range(idx0 - self.num_frames + 1, idx0 + 1)])
                 index = np.clip(index, 0, max_frame - 1).tolist()
@@ -237,27 +298,26 @@ class PFNL_alternative(VSR):
                 bottom_left = gt_prev[height // 2:height, 0:width // 2]
                 top_right = gt_prev[0:height // 2, width // 2:width]
                 bottom_right = gt_prev[height // 2:height, width // 2:width]
+                # print("cropped image shape: {}".format(top_left.shape))
 
                 # Resizing the current reference frame
                 gt_cur = cv2_imread(gtlist[index[1]])
                 gt_cur = cv2.resize(gt_cur, (width // 2, height // 2), interpolation=cv2.INTER_AREA)
-
                 top_left_crop = top_left[height // 2 - out_h:height // 2, width // 2 - out_w:width // 2, :].astype(
                     np.float32) / 255.0
                 bottom_left_crop = bottom_left[0:out_h, width // 2 - out_w:width // 2, :].astype(np.float32) / 255.0
                 top_right_crop = top_right[height // 2 - out_h:height // 2, 0:out_w, :].astype(np.float32) / 255.0
                 bottom_right_crop = bottom_right[0:out_h, 0:out_w, :].astype(np.float32) / 255.0
-
                 gt_cur_crop = gt_cur[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0
-                # print("gt_cur image shape: {}".format(gt_cur.shape))
-
                 batch_gt.append(
                     np.stack((top_left_crop, bottom_left_crop, gt_cur_crop, top_right_crop, bottom_right_crop), axis=0))
+
 
                 if len(batch_gt) == self.eval_basz:
                     batch_gt = np.stack(batch_gt, 0)
                     # print("batch_gt: {}".format(batch_gt))
                     batch_lr = sess.run(eval_inp, feed_dict={eval_gt: batch_gt})
+                    # ORIGINAL
                     mse_val = sess.run(self.eval_mse,
                                        feed_dict={self.L_eval: batch_lr,
                                                   self.H: batch_gt[:,
@@ -270,6 +330,7 @@ class PFNL_alternative(VSR):
                     batch_gt = []
                     print('\tEval batch {} - {} ...'.format(batch_cnt, batch_cnt + self.eval_basz))
                     batch_cnt += self.eval_basz
+                    # print("MSE Acc: {}".format(mse_acc))
 
         # Compute PSNR and MSE from evaluation batch
         psnr_acc = 10 * np.log10(1.0 / mse_acc)
@@ -288,8 +349,7 @@ class PFNL_alternative(VSR):
     Logs results from training for further analysis.
     '''
     def train(self):
-        # LR, HR = self.alternative_pipeline()
-        LR, HR = self.alternative_pipeline_downsample_change()
+        LR, HR = self.alternative_pipeline()
         print("Training begin")
         print("From pipeline: LR: {}, HR: {}".format(LR, HR))
         global_step = tf.Variable(initial_value=0, trainable=False)
@@ -302,6 +362,8 @@ class PFNL_alternative(VSR):
         print("learning rate lr: {}".format(lr))
 
         vars_all = tf.trainable_variables()
+
+
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
 
         # TF configures the session
@@ -367,10 +429,12 @@ class PFNL_alternative(VSR):
                 start_time = time.time()
                 print("Timing restarted")
                 self.end_lr = end_lr_schedule(step)
+                # self.end_lr = end_lr_schedule(step) if end_lr_schedule(step) != "invalid" else self.end_lr
                 print("Current end learning rate: {}".format(self.end_lr))
 
             lr1, hr = sess.run([LR, HR])
             _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: lr1, self.H: hr})
+            # _, loss_v = sess.run([training_op, self.loss], feed_dict={self.L: LR, self.H: HR})
 
             if step > 500 and loss_v > 10:
                 print('Model collapsed with loss={}'.format(loss_v))
@@ -381,62 +445,68 @@ class PFNL_alternative(VSR):
     It then passes the down-sampled imaged through the network to perform 2xSR
     '''
 
-    def test_video_truth(self, path, name='memory_result', reuse=True, part=50):
+    def test_video_truth(self, path, name='result', reuse=True, part=50):
         save_path = join(path, name)
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
-        # 2X input path
-        inp_path = join(path, 'truth_downsize_2')
+        inp_path = join(path, 'truth')
+        # inp_path=join(path,'truth_downsize_2')
         # print("Input Path: {}".format(inp_path))
         imgs_arr = sorted(glob.glob(join(inp_path, '*.png')))
+        # print("Image set: {}".format(imgs_arr))
+        max_frame = len(imgs_arr)
+        print("Number of frames: {}".format(max_frame))
+        # still need this
+        '''Only the first image needs to be read to retrieve 'truth' dimensions'''
+        imgs = np.array([cv2_imread(i) for i in imgs_arr]) / 255.
+        h, w, c = imgs[0].shape
 
-        num_frames = len(imgs_arr)
-        print("Number of frames: {}".format(num_frames))
-        truth_img_dim = np.array(cv2_imread(imgs_arr[0])) / 255
-        h, w, c = truth_img_dim.shape
-        print("Truth - Height: {}, Width: {}, Channels: {}".format(h, w, c))
+        all_imgs = []
+        frames_foregone = 5
 
-        # Pre-processing the first two frames, after considering frames_foregone
+        # Flattened matrix of relevant images (HR, LR) according to frames foregone
+        for i in range(frames_foregone, len(imgs_arr) - frames_foregone):
+            # Reading and downsizing current image
+            cur_img = cv2_imread(imgs_arr[i])
+            cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+            cur_img_downsize = np.array(cur_img_downsize) / 255
 
-        frames_foregone = 0
-        # Read 2X
-        cur_img = np.array(cv2_imread(imgs_arr[frames_foregone]))/255
+            # Reading previous HR image and splitting into tiles
+            prev_img = cv2_imread(imgs_arr[i - 1])
+            prev_top_left = prev_img[0: h // 2, 0: w // 2]
+            prev_bottom_left = prev_img[h // 2: h, 0: w // 2]
+            prev_top_right = prev_img[0: h // 2, w // 2: w]
+            prev_bottom_right = prev_img[h // 2: h, w // 2: w]
 
-        # Reading the previous HR image and splitting into tiles
-        prev_img = cv2_imread(imgs_arr[frames_foregone - 1])
+            prev_top_left = np.array(prev_top_left) / 255
+            prev_bottom_left = np.array(prev_bottom_left) / 255
+            prev_top_right = np.array(prev_top_right) / 255
+            prev_bottom_right = np.array(prev_bottom_right) / 255
 
-        # These are the 4 lots of X. These should not be downsized further.
-        prev_top_left = prev_img[0: h // 2, 0: w // 2]
-        prev_bottom_left = prev_img[h // 2: h, 0: w // 2]
-        prev_top_right = prev_img[0: h // 2, w // 2: w]
-        prev_bottom_right = prev_img[h // 2: h, w // 2: w]
-        prev_top_left = np.array(prev_top_left) / 255
-        prev_bottom_left = np.array(prev_bottom_left) / 255
-        prev_top_right = np.array(prev_top_right) / 255
-        prev_bottom_right = np.array(prev_bottom_right) / 255
-        print("Shape tile: ",prev_bottom_right.shape)
+            # all_imgs.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
+            all_imgs.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
 
-        if part > num_frames:
-            part = num_frames
-        if num_frames % part == 0:
-            num_once = num_frames // part
+        print("all_imgs shape: {}".format(len(all_imgs)))
+
+        if part > max_frame:
+            part = max_frame
+        if max_frame % part == 0:
+            num_once = max_frame // part
         else:
-            num_once = num_frames // part + 1
+            num_once = max_frame // part + 1
 
-        # Dimensions being passed into the network
         L_test = tf.placeholder(tf.float32,
-                                shape=[num_once, (self.num_frames + 3), h // self.scale, w // self.scale,
+                                shape=[num_once, (self.num_frames + 3), h // (2 * self.scale), w // (2 * self.scale),
                                        3],
                                 name='L_test')
 
-        print("L_test shape: {}".format(L_test))
         SR_test = self.forward(L_test)
-        print("SR_test shape: {}".format(SR_test))
         if not reuse:
+
             self.img_hr = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='H_truth')
             self.img_lr = DownSample_4D(self.img_hr, BLUR, scale=self.scale)
-            print("self.img_lr shape: {}".format(self.img_lr.shape))
+
             config = tf.ConfigProto()
             # Allow growth attempts to allocate only as much GPU memory based on runtime allocations
             config.gpu_options.allow_growth = True
@@ -448,51 +518,67 @@ class PFNL_alternative(VSR):
             self.saver = tf.train.Saver(max_to_keep=100, keep_checkpoint_every_n_hours=1)
             self.load(sess, self.save_dir)
         run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-
-        lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: np.expand_dims(cur_img, 0)}, options=run_options)
+        lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: all_imgs}, options=run_options)
         print("lrs shape: {}".format(lrs.shape))
+        lr_list = []
+        # Temporary tensor
+        test = np.zeros((1, 5, h // 4, w // 4, c))
+        print("test shape: {}".format(test.shape))
+
+        # Stacking each batch of 5 input frames
+        for i in range(part - 2 * frames_foregone):
+            index = np.array([i for i in range(i + frames_foregone - self.num_frames + 1, i + frames_foregone + 1)])
+            # print("index: {}".format(index))
+            index = np.clip(index, 0, max_frame - 1).tolist()
+            batch_lr = np.stack(np.array(lrs[i * 5: i * 5 + 5]))
+            batch_lr = np.expand_dims(batch_lr, 0)
+            # print("batch_lr shape: {}".format(batch_lr.shape))
+            test = np.concatenate((test, batch_lr), axis=0)
+            # print("test shape: {}".format(test.shape))
+
+        # lr_list = np.array(lr_list)
+        test = np.array(test[1:])
+        # print("Shape of lr list: {}".format(lr_list.shape))
+        # print("test shape: {}".format(test.shape))
+
+        print('Save at {}'.format(save_path))
+        print('{} Inputs With Shape {}'.format(lrs.shape[0], lrs.shape[1:]))
+        # h, w, c = lrs.shape[1:]
 
         # Performing VSR and saving images
-        run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
-
-        batch_trial = np.stack((prev_top_left, prev_bottom_left, lrs[0], prev_top_right, prev_bottom_right), axis=0)
-        sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(batch_trial, 0)}, options=run_options)
-        print('sr output shape: {}'.format(sr.shape))
-        # all_time.append(time.time() - st_time)
-        for j in range(sr.shape[0]):
-            img = sr[j][0] * 255.
-            img = np.clip(img, 0, 255)
-            img = np.round(img, 0).astype(np.uint8)
-            # Name of saved file. This should match the 'truth' format for easier analysis in future.
-            cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone)), img)
-
-        for i in trange(part - 2 * frames_foregone - 1):
-
-            prev_img = np.array(cv2_imread(imgs_arr[frames_foregone+i - 1])) / 255
-
-            # Tile the output image in preparation for feedback
-            img_top_left = prev_img[0: h // 2, 0: w // 2]
-            img_bottom_left = prev_img[h // 2: h, 0: w // 2]
-            img_top_right = prev_img[0: h // 2, w // 2: w]
-            img_bottom_right = prev_img[h // 2: h, w // 2: w]
-            img_top_left = np.array(img_top_left) / 255
-            img_bottom_left = np.array(img_bottom_left) / 255
-            img_top_right = np.array(img_top_right) / 255
-            img_bottom_right = np.array(img_bottom_right) / 255
-
-            cur_img = np.array(cv2_imread(imgs_arr[frames_foregone+i])) / 255
-
-            lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: np.expand_dims(cur_img, 0)}, options=run_options)
-            batch_trial = np.stack((img_top_left, img_bottom_left, lrs[0], img_top_right, img_bottom_right))
-
-            sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(batch_trial, 0)}, options=run_options)
-
+        all_time = []
+        for i in trange(part - 2 * frames_foregone):
+            st_time = time.time()
+            run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
+            # print('Num_once: {}'.format(num_once))
+            # print("Lr_list index: {}:{}".format(i * num_once, (i + 1) * num_once))
+            sr = self.sess.run(SR_test, feed_dict={L_test: test[i * num_once:(i + 1) * num_once]},
+                               options=run_options)
+            # sr = self.sess.run(SR_test, feed_dict={L_test: lr_list[i*5: i*5 + 5]},
+            #                    options=run_options)
+            all_time.append(time.time() - st_time)
             for j in range(sr.shape[0]):
                 img = sr[j][0] * 255.
                 img = np.clip(img, 0, 255)
                 img = np.round(img, 0).astype(np.uint8)
                 # Name of saved file. This should match the 'truth' format for easier analysis in future.
-                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i)), img)
+                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i * num_once + j + 1)), img)
+        all_time = np.array(all_time)
+        if max_frame > 0:
+            all_time = np.array(all_time)
+            cur_folder = path.lstrip('test\\udm10')
+            cur_folder = cur_folder.lstrip('test\\vid4')
+            time_dict = {
+                "Folder": cur_folder,
+                "Number of Frames": part - 2 * frames_foregone,
+                "Total Time": np.sum(all_time),
+                "Mean Time": np.mean(all_time[1:])
+            }
+            with open(self.test_dir, 'a+') as f:
+                f.write(json.dumps(time_dict))
+                f.write('\n')
+            print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
+
 
     '''
     This function implements information recycling. 
@@ -503,31 +589,32 @@ class PFNL_alternative(VSR):
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
-        # 4X
-        # inp_path = join(path, 'truth')
-        # 2X
-        inp_path = join(path, 'truth_downsize_2')
+        inp_path = join(path, 'truth')
+        # inp_path=join(path,'truth_downsize_2')
         # print("Input Path: {}".format(inp_path))
         imgs_arr = sorted(glob.glob(join(inp_path, '*.png')))
-
-        # Get the first SR image based on the truth dataset, before iteratively passing it through.
-
         # print("Image set: {}".format(imgs_arr))
         num_frames = len(imgs_arr)
         print("Number of frames: {}".format(num_frames))
         truth_img_dim = np.array(cv2_imread(imgs_arr[0])) / 255
         h, w, c = truth_img_dim.shape
-        print("Truth - Height: {}, Width: {}, Channels: {}".format(h, w, c))
+        print("Original dimensions\nHeight: {}, Width: {}, Channels: {}".format(h, w, c))
 
-        # Pre-processing the first two frames, after considering frames_foregone
+        # Pre-processing the first two frames (after considering frames_foregone)
         first_batch = []
-        frames_foregone = 0
-        # Read 2X
-        cur_img = np.array(cv2_imread(imgs_arr[frames_foregone]))/255
+        frames_foregone = 5
+        cur_img = cv2_imread(imgs_arr[frames_foregone])
+        cur_img_downsize = cv2.resize(cur_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+        cur_img_downsize = np.array(cur_img_downsize) / 255
 
+        # Reading the previous HR image and splitting into tiles
+        # Reading previous HR image and splitting into tiles
         prev_img = cv2_imread(imgs_arr[frames_foregone - 1])
 
-        # These are the 4 lots of X. These should not be passed downsized further
+        # Downsizing by an additional 2 (once-off)
+        # prev_img = cv2.resize(prev_img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+
+        # These are the 4 lots of X. These should not be passed into the network per se
         prev_top_left = prev_img[0: h // 2, 0: w // 2]
         prev_bottom_left = prev_img[h // 2: h, 0: w // 2]
         prev_top_right = prev_img[0: h // 2, w // 2: w]
@@ -536,8 +623,10 @@ class PFNL_alternative(VSR):
         prev_bottom_left = np.array(prev_bottom_left) / 255
         prev_top_right = np.array(prev_top_right) / 255
         prev_bottom_right = np.array(prev_bottom_right) / 255
-        print("Shape tile: ",prev_bottom_right.shape)
 
+        # 5 lots of 2X, which now needed to be passed into the network
+        first_batch.extend([prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right])
+        print(prev_top_left.shape, cur_img_downsize.shape)
 
         if part > num_frames:
             part = num_frames
@@ -546,18 +635,16 @@ class PFNL_alternative(VSR):
         else:
             num_once = num_frames // part + 1
 
+        # Dimensions being passed into the network!
         L_test = tf.placeholder(tf.float32,
-                                shape=[num_once, (self.num_frames + 3), h // self.scale, w // self.scale,
+                                shape=[num_once, (self.num_frames + 3), h // (2 * self.scale), w // (2 * self.scale),
                                        3],
                                 name='L_test')
 
-        print("L_test shape: {}".format(L_test))
         SR_test = self.forward(L_test)
-        print("SR_test shape: {}".format(SR_test))
         if not reuse:
             self.img_hr = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='H_truth')
             self.img_lr = DownSample_4D(self.img_hr, BLUR, scale=self.scale)
-            print("self.img_lr shape: {}".format(self.img_lr.shape))
             config = tf.ConfigProto()
             # Allow growth attempts to allocate only as much GPU memory based on runtime allocations
             config.gpu_options.allow_growth = True
@@ -570,12 +657,12 @@ class PFNL_alternative(VSR):
             self.load(sess, self.save_dir)
         run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
         # print("LR shape: {}".format(self.img_lr.shape))
-
-
-        lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: np.expand_dims(cur_img, 0)}, options=run_options)
-
-        # lrs = self.sess.run(first_batch_tensor, feed_dict={self.img_hr: first_batch}, options=run_options)
+        lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: first_batch}, options=run_options)
         print("lrs shape: {}".format(lrs.shape))
+        lr_list = []
+        lrs = np.expand_dims(lrs, 0)
+        print('Save at {}'.format(save_path))
+        print('{} Inputs With Shape {}'.format(lrs.shape[0], lrs.shape[1:]))
 
         # Performing VSR and saving images
         all_time = []
@@ -583,12 +670,8 @@ class PFNL_alternative(VSR):
         run_options = tf.RunOptions(report_tensor_allocations_upon_oom=True)
         # print('Num_once: {}'.format(num_once))
         # print("Lr_list index: {}:{}".format(i * num_once, (i + 1) * num_once))
-        batch_trial = np.stack((prev_top_left, prev_bottom_left, lrs[0], prev_top_right, prev_bottom_right), axis=0)
-
-
-        sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(batch_trial, 0)}, options=run_options)
-        print('sr output shape: {}'.format(sr.shape))
-        # all_time.append(time.time() - st_time)
+        sr = self.sess.run(SR_test, feed_dict={L_test: lrs}, options=run_options)
+        all_time.append(time.time() - st_time)
         for j in range(sr.shape[0]):
             img = sr[j][0] * 255.
             img = np.clip(img, 0, 255)
@@ -596,55 +679,8 @@ class PFNL_alternative(VSR):
             # Name of saved file. This should match the 'truth' format for easier analysis in future.
             cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone)), img)
 
-
-        # Pass the output back into the network!
-
-        for i in trange(part - 2 * frames_foregone - 1):
-            new_batch = []
-
-            # Tile the output image in preparation for feedback
-            # In this case, passing in HR at a periodic basis. This can be turned off.
-            if i % 10 == 0 and i > frames_foregone:
-                print(i)
-                print("HR frame insert")
-                prev_img = cv2_imread(imgs_arr[frames_foregone+i-1])
-
-                # These are the 4 lots of X. These should not be passed downsized further
-                img_top_left = prev_img[0: h // 2, 0: w // 2]
-                img_bottom_left = prev_img[h // 2: h, 0: w // 2]
-                img_top_right = prev_img[0: h // 2, w // 2: w]
-                img_bottom_right = prev_img[h // 2: h, w // 2: w]
-                img_top_left = np.array(prev_top_left) / 255
-                img_bottom_left = np.array(prev_bottom_left) / 255
-                img_top_right = np.array(prev_top_right) / 255
-                img_bottom_right = np.array(prev_bottom_right) / 255
-
-            else:
-                img_top_left = img[0: h // 2, 0: w // 2]
-                img_bottom_left = img[h // 2: h, 0: w // 2]
-                img_top_right = img[0: h // 2, w // 2: w]
-                img_bottom_right = img[h // 2: h, w // 2: w]
-                img_top_left = np.array(img_top_left) / 255
-                img_bottom_left = np.array(img_bottom_left) / 255
-                img_top_right = np.array(img_top_right) / 255
-                img_bottom_right = np.array(img_bottom_right) / 255
-
-            cur_img = np.array(cv2_imread(imgs_arr[frames_foregone+i])) / 255
-
-
-            lrs = self.sess.run(self.img_lr, feed_dict={self.img_hr: np.expand_dims(cur_img, 0)}, options=run_options)
-            batch_trial = np.stack((img_top_left, img_bottom_left, lrs[0], img_top_right, img_bottom_right))
-
-            sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(batch_trial, 0)}, options=run_options)
-
-            # sr = self.sess.run(SR_test, feed_dict={L_test: np.expand_dims(new_batch, 0)}, options=run_options)
-            # all_time.append(time.time() - st_time)
-            for j in range(sr.shape[0]):
-                img = sr[j][0] * 255.
-                img = np.clip(img, 0, 255)
-                img = np.round(img, 0).astype(np.uint8)
-                # Name of saved file. This should match the 'truth' format for easier analysis in future.
-                cv2_imsave(join(save_path, 'Frame {:0>3}.png'.format(frames_foregone + i)), img)
+        all_time = np.array(all_time)
+        print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
 
 
     '''
@@ -653,11 +689,13 @@ class PFNL_alternative(VSR):
     This is a genuine form of super-resolution, which generally performs very poorly.
     Supervised learning limitation.
     '''
+
     def test_video_lr(self, path, name='result', reuse=False, part=50):
         save_path = join(path, name)
         print("Save Path: {}".format(save_path))
         # Create the save path directory if it does not exist
         automkdir(save_path)
+        # blurred_path = join(path, 'blur4')
         blurred_path = join(path, 'truth_downsize_4')
         truth_path = join(path, 'truth')
         # inp_path=join(path,'truth_downsize_4')
@@ -731,11 +769,15 @@ class PFNL_alternative(VSR):
             index = np.array([i for i in range(i + frames_foregone - self.num_frames + 1, i + frames_foregone + 1)])
             # print("index: {}".format(index))
             index = np.clip(index, 0, max_frame - 1).tolist()
-
+            # print("index: {}".format(index))
+            # lr_list.append(np.array([lrs[j] for j in index]))
+            # print("relative frames: {}:{}".format(i * 5, i * 5 + 4))
+            # lr_list.extend(np.array(lrs[i * 5: i * 5 + 5]))
             batch_lr = np.stack(np.array(all_imgs[i * 5: i * 5 + 5]))
             batch_lr = np.expand_dims(batch_lr, 0)
             # print("batch_lr shape: {}".format(batch_lr.shape))
             test = np.concatenate((test, batch_lr), axis=0)
+            # print("test shape: {}".format(test.shape))
 
         test = np.array(test[1:])
         all_time = []
@@ -776,14 +818,14 @@ class PFNL_alternative(VSR):
                 # datapath=join(path,k)
                 print("Datapath: {}".format(k))
                 # Learned down-sampling
-                # self.test_video_truth(k, name=name, reuse=False, part=1000)
+                self.test_video_truth(k, name=name, reuse=False, part=1000)
                 # No learned down-sampling
-                self.test_video_lr(k, name=name, reuse=False, part=1000)
+                # self.test_video_lr(k, name=name, reuse=False, part=1000)
                 # Information recycling
-                # self.information_recycling(k, name=name, reuse=False, part=1000)
+                # self.test_video_memory(k, name=name, reuse=False, part=1000)
 
 
 if __name__ == '__main__':
-    model = PFNL_alternative()
+    model = PFNL_generic_loss_functions()
     model.train()
     model.testvideos()

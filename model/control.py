@@ -11,7 +11,7 @@ import scipy
 import cv2
 import json
 import time
-from tensorflow.python.layers.convolutional import Conv2D, conv2d
+from tensorflow.python.layers.convolutional import Conv2D
 from utils import NonLocalBlock, DownSample, DownSample_4D, BLUR, cv2_imread, cv2_imsave, automkdir, end_lr_schedule
 from tqdm import tqdm, trange
 from model.base_model import VSR
@@ -27,16 +27,17 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 ########################################################
 
 ''' 
-This is a modified version of PFNL by Darren Flaks.
+This is the Control model which utilises a non-causal approach to VSR.
+Yi et al. proposed this model in their 2019 ICCV paper.
 '''
-NAME = 'DELETE_LR_TRIAL'
+NAME = 'control_model'
 
-# Class holding all of the PFNL functions
+# Instantiation of the Control model. Note that the number of input frames can vary.
 class PFNL_control(VSR):
     def __init__(self):
         # Initialize variables with respect to images, training, evaluating and directory locations
         # Takes <num_frames> 32x32 LR frames as input to compute calculation cost
-        self.num_frames = 3
+        self.num_frames = 5 # Tested with 3, 5 and 7
         self.scale = 2
         self.in_size = 32
         self.gt_size = self.in_size * self.scale
@@ -45,11 +46,10 @@ class PFNL_control(VSR):
         self.eval_basz = 1
         # initial learning rate of 1e-3 and follow polynomial decay to 1e-4 after 120,000 iterations
         self.learning_rate = 0.2e-3
-        # [(1, 1.5), (0.5, 1.7), (0.25, 1.9), (0.1, 2.1), (0.05, 2.3), (0.025, 2.5), (0.01, 2.7), (0.005, 2.9), (0.0025, 3.0)]
         self.end_lr = 1e-4
         self.reload = True
         # Number of iterations for training
-        self.max_step = int(3e5 + 1)
+        self.max_step = int(2.5e5 + 1)
         self.decay_step = 1.2e5
         self.train_dir = './data/filelist_train.txt'
         self.eval_dir = './data/filelist_val.txt'
@@ -57,6 +57,9 @@ class PFNL_control(VSR):
         self.log_dir = './logs/{}.txt'.format(NAME)
         self.test_dir = './test/{}_test_time.txt'.format(NAME)
 
+    ''' 
+    Forward pass of the network
+    '''
     def forward(self, x):
         # Filters: dimensionality of output space
         # Based on PFS-PS, set the convolutional layer filter as 64
@@ -166,6 +169,10 @@ class PFNL_control(VSR):
         # HR estimate output
         return tf.stack([out + bic], axis=1, name='out')
 
+
+    '''
+    Network constructor with forward pass and computing loss
+    '''
     def build(self):
         in_h, in_w = self.eval_in_size
         # H is the corresponding HR centre frame
@@ -178,13 +185,18 @@ class PFNL_control(VSR):
         SR_train = self.forward(L_train)
         SR_eval = self.forward(L_eval)
         # Charbonnier Loss Function (differentiable variant of L1 norm)
-        # epsilon is empirically set to 10e-3
         loss = tf.reduce_mean(tf.sqrt((SR_train - H) ** 2 + 1e-6))
         # Evaluate mean squared error
         eval_mse = tf.reduce_mean((SR_eval - H) ** 2, axis=[2, 3, 4])
         self.loss, self.eval_mse = loss, eval_mse
         self.L, self.L_eval, self.H, self.SR = L_train, L_eval, H, SR_train
 
+
+    '''
+    Evaluation step for the network.
+    Computes the PSNR over the validation video sequences.
+    Occurs every 500 iterations during training, by default.
+    '''
     def eval(self):
         print('Evaluating ...')
         if not hasattr(self, 'sess'):
@@ -211,12 +223,9 @@ class PFNL_control(VSR):
         mse_acc = None
         for gtlist in gt_list:
             max_frame = len(gtlist)
-            # print("Max frame: {}".format(max_frame))
             for idx0 in range(center, max_frame, 32):
                 index = np.array([i for i in range(idx0 - self.num_frames // 2, idx0 + self.num_frames // 2 + 1)])
-                # print("Index: {}".format(index))
                 index = np.clip(index, 0, max_frame - 1).tolist()
-                # print("Index: {}".format(index))
                 gt = [cv2_imread(gtlist[i]) for i in index]
                 gt = [i[border:out_h + border, border:out_w + border, :].astype(np.float32) / 255.0 for i in gt]
                 batch_gt.append(np.stack(gt, axis=0))
@@ -227,9 +236,6 @@ class PFNL_control(VSR):
                     mse_val = sess.run(self.eval_mse,
                                        feed_dict={self.L_eval: batch_lr,
                                                   self.H: batch_gt[:, self.num_frames // 2:self.num_frames // 2 + 1]})
-                    # print("Batch LR {}".format(batch_lr))
-                    # print("Batch gt {}".format(batch_gt))
-                    # print("MSE Value: {}".format(mse_val))
                     if mse_acc is None:
                         mse_acc = mse_val
                     else:
@@ -238,6 +244,7 @@ class PFNL_control(VSR):
                     print('\tEval batch {} - {} ...'.format(batch_cnt, batch_cnt + self.eval_basz))
                     batch_cnt += self.eval_basz
 
+        # Compute PSNR and MSE from evaluation batch
         psnr_acc = 10 * np.log10(1.0 / mse_acc)
         mse_avg = np.mean(mse_acc, axis=0)
         psnr_avg = np.mean(psnr_acc, axis=0)
@@ -248,6 +255,11 @@ class PFNL_control(VSR):
         psnr_avg = (psnr_avg * 1e6).astype(np.int64) / (1e6)
         return mse_avg.tolist(), psnr_avg.tolist()
 
+
+    '''
+    Training loop. Retrieves the pre-processed data from base_model.py.
+    Logs results from training for further analysis.
+    '''
     def train(self):
         print("Training begin")
         LR, HR = self.single_input_producer()
@@ -260,24 +272,17 @@ class PFNL_control(VSR):
                                        power=1.)
 
         vars_all = tf.trainable_variables()
-        # This print statement throws error: 'int' object has not attribute 'value'
-        # print('Params num of all:',get_num_params(vars_all))
 
         training_op = tf.train.AdamOptimizer(lr).minimize(self.loss, var_list=vars_all, global_step=global_step)
 
-        # Tensorboard logging
-        # log_dir = "tb_graph\\{}_{}".format(NAME, time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime()))
         config = tf.ConfigProto()
         # Attempt to allocate only as much GPU memory based on runtime allocations
-        # Allocatee little memory, and as Sessions continues to run, more GPU memory is provided
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
-        # sess=tf.Session()
         self.sess = sess
         # Output tensors and metadata obtained when executing a session
         sess.run(tf.global_variables_initializer())
-        # writer = tf.summary.FileWriter(log_dir, sess.graph)
-        # writer.close()
+
         # Save class adds the ability to save and restore variables to and from checkpoints
         # max_to_keep indicates the maximum number of recent checkpoint files to keep (default is 5)
         # keep_checkpoint_every_n_hours here means keep 1 checkpoint every hour of training
@@ -301,8 +306,6 @@ class PFNL_control(VSR):
                 losses.append(loss_v)
             if (time.time() - start_time) > 5 and step % 500 == 0:
                 print("Saving checkpoint")
-                # if step > gs:
-                #     self.save(sess, self.save_dir, step)
                 self.save(sess, self.save_dir, step)
                 training_time = time.time() - start_time
                 print('Training cost time {}s.'.format(training_time))
@@ -314,6 +317,7 @@ class PFNL_control(VSR):
                 cost_time = time.time() - start_time
                 print('Training and evaluation cost {}s.'.format(cost_time))
 
+                # Log all information of interest
                 log_dict = {
                     "Date": time.strftime("%Y-%m-%d", time.localtime()),
                     "Time": time.strftime("%H:%M:%S", time.localtime()),
@@ -325,6 +329,7 @@ class PFNL_control(VSR):
                     "Total Time": cost_time
                 }
 
+                # Write log text file
                 with open(self.log_dir, 'a+') as f:
                     f.write(json.dumps(log_dict))
                     f.write('\n')
@@ -333,7 +338,8 @@ class PFNL_control(VSR):
 
                 start_time = time.time()
                 print("Timing restarted")
-                self.end_lr = end_lr_schedule(step) if end_lr_schedule(step) != "invalid" else self.end_lr
+                self.end_lr = end_lr_schedule(step)
+                # self.end_lr = end_lr_schedule(step) if end_lr_schedule(step) != "invalid" else self.end_lr
                 print("Current end learning rate: {}".format(self.end_lr))
 
 
@@ -435,8 +441,10 @@ class PFNL_control(VSR):
             print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
 
     '''
-    This function accepts video frames of low quality and
-    passes them through the network to perform 2xSR
+    This function does not down-scale input frames further.
+    Passes frames through the network to perform 2xSR.
+    This is a genuine form of super-resolution, which generally performs very poorly.
+    Supervised learning limitation.
     '''
 
     def test_video_lr(self, path, name='result', reuse=False, part=50):
@@ -506,7 +514,11 @@ class PFNL_control(VSR):
             all_time = np.array(all_time)
             print('spent {} s in total and {} s in average'.format(np.sum(all_time), np.mean(all_time[1:])))
 
-    # Default path written by authors
+
+    '''
+    General testing function which calls the corresponding method. 
+    Can either pass in frames with learned down-sampling or no learned down-sampling
+    '''
     def testvideos(self, path='/dev/f/data/video/test2/udm10', start=0, name='pfnl'):
         kind = sorted(glob.glob(join(path, '*')))
         print("kind: {}".format(kind))
@@ -520,11 +532,10 @@ class PFNL_control(VSR):
                     reuse = True
                 # datapath=join(path,k)
                 print("Datapath: {}".format(k))
-                # The datapath is not needed as the files are located at variable k
-                # SR with HR as source
-                self.test_video_truth(k, name=name, reuse=False, part=1000)
-                # SR with LR as source
-                # self.test_video_lr(k, name=name, reuse=False, part=1000)
+                # Learned down-sampling
+                # self.test_video_truth(k, name=name, reuse=False, part=1000)
+                # No learned down-sampling
+                self.test_video_lr(k, name=name, reuse=False, part=1000)
 
 
 if __name__ == '__main__':

@@ -37,11 +37,11 @@ If you have questions, please open an issue here or send me an email at darrenf0
 
 This frame is from clap in UDM10 testing dataset. The down-sampled and blurred input to the network and corresponding network output of the Alternative model are shown.
 
-Input           |  Output
-:-------------------------:|:-------------------------:
-<img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_b4.gif" alt="Input to Network" width="300">
-  |  <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_alt_best.gif" alt="Output of Network" width="300">
 
+<p float="left">
+    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_b4.gif" alt="Input to Network" width="300" />
+    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_alt_best.gif" alt="Output of Network" width="300" />
+</p>
 
 <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_b4.gif" alt="Input to Network" width="500">
 

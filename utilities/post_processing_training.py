@@ -5,7 +5,17 @@ import glob
 import math
 import matplotlib.pyplot as plt
 
-# Append each JSON object from log file reading line by line
+'''
+This script was originally a Google CoLaboratory document to analyse training results. It has been converted
+into a single script. It enables the cleaning of training log files for plotting. 
+Plotting includes single-model, multi-model and scatter plots.
+It contains several mini functions to assist the conversion of original log files eventually into usable format
+for plotting and analysis.
+'''
+
+'''
+Text files contain JSON objects on each line. This combines them into a single JSON object
+'''
 def append_logs(log_file):
     logs = []
     with open(log_file) as lf:
@@ -13,7 +23,9 @@ def append_logs(log_file):
             logs.append(json.loads(line))
     return logs
 
-
+'''
+Retrieve model names to organise data
+'''
 def retrieve_model_names(path):
     files = os.listdir(path)
     # print(log_files)
@@ -26,7 +38,9 @@ def retrieve_model_names(path):
     return sorted(names)
 
 
-# This function returns a list of duplicates of an array
+'''
+This function returns a list of duplicates of an array (utility function)
+'''
 def list_duplicates(arr):
     duplicates = set([x for x in arr if arr.count(x) > 1])
     if list(duplicates):
@@ -35,8 +49,9 @@ def list_duplicates(arr):
     else:
         print("No duplicates found after cleaning")
         return 0
-
-
+'''
+This function extracts metrics into a dictionary for easier analysis
+'''
 def clean_logs(logs):
     iterations = []
     train_times = []
@@ -66,13 +81,17 @@ def clean_logs(logs):
     }
     return dict_out
 
-
+'''
+Conversion from seconds into hours, minutes and seconds
+'''
 def hours_mins_secs(seconds):
     mins, secs = divmod(seconds, 60)
     hours, mins = divmod(mins, 60)
     return "%d hours, %02d minutes and %02d seconds" % (hours, mins, secs)
 
-
+'''
+Convert data in dictionary into numpy format for further analysis
+'''
 def convert_to_numpy(data):
     key_names = []
     for key in data:
@@ -82,13 +101,18 @@ def convert_to_numpy(data):
     return data
 
 
+'''
+Computing total time to finish and average time for every 500 iterations
+'''
 def timing_summary(np_data):
     # Timing characteristics
     time_to_finish = np.cumsum(np_data['Train Times'])[-1]
     avg_train_time = np.mean(np_data['Train Times'])
     return time_to_finish, avg_train_time
 
-
+'''
+Best model based on highest PSNR value from evaluation step
+'''
 def best_model(np_data):
     # Find the best performing model
     max_ind = np.argmax(np_data['PSNRs'])
@@ -97,6 +121,9 @@ def best_model(np_data):
     PSNR_max = np_data['PSNRs'][max_ind]
     return iteration_max, PSNR_max, time_to_max
 
+'''
+Finding the minimum loss value
+'''
 def lowest_loss(np_data):
     # Find the best performing model
     min_ind = np.argmin(np_data['Losses'])
@@ -105,6 +132,9 @@ def lowest_loss(np_data):
     return iteration_min, loss_min
 
 
+'''
+Finding the top N PSNR values. Relevant to view if consistently high results.
+'''
 def top_N(np_data, N=3):
     # Retrieve the top N best performing models
     top_indices = np.argpartition(np_data['PSNRs'], -N)[-N:]
@@ -115,6 +145,10 @@ def top_N(np_data, N=3):
     # print(top_N_PSNRs)
     return top_N_iterations, top_N_PSNRs
 
+
+'''
+Finding the bottom losses. Relevant to view if model converged fully.
+'''
 def bot_N(np_data, N=3):
     # Retrieve the top N best performing models
     bot_indices = np.argpartition(-np_data['Losses'], -N)[-N:]
@@ -126,31 +160,29 @@ def bot_N(np_data, N=3):
     return bot_N_iterations, bot_N_losses
 
 
-''' This function returns the n-point moving average
 '''
-
-
+This function returns the n-point moving average
+'''
 def N_moving_avg(np_data, N=5):
     # calculate average based on first N point
     PSNRs = np_data['PSNRs']
     window_size = N
-
     i = 0
     moving_avgs = []
 
     while i < len(PSNRs) - window_size + 1:
         cur_window = PSNRs[i: i + window_size]
         cur_window_avg = sum(cur_window) / window_size
-
         moving_avgs.append(cur_window_avg)
-
         i += 1
 
     plt.plot(moving_avgs, label='{}-point moving average'.format(N))
     plt.legend(loc='lower right')
     # print(moving_avgs)
 
-
+'''
+Generic plotting of PSNR vs iterations
+'''
 def plot_iter_vs_PSNR(np_data, iteration_max, PSNR_max, name='Model'):
     scaled_iterations = np_data['Iterations'] / 1000
     PSNRs = np_data['PSNRs']
@@ -169,6 +201,10 @@ def plot_iter_vs_PSNR(np_data, iteration_max, PSNR_max, name='Model'):
     plt.close()
     # plt.show()
 
+
+'''
+Generic plotting of Loss vs iterations
+'''
 def plot_iter_vs_loss(np_data, iteration_min, loss_min, name='Model'):
     scaled_iterations = np_data['Iterations'] / 1000
     losses = np_data['Losses']
@@ -187,6 +223,10 @@ def plot_iter_vs_loss(np_data, iteration_min, loss_min, name='Model'):
     plt.close()
     # plt.show()
 
+
+'''
+Generate statistics of each model, such as high PSNR, low loss and total training time.
+'''
 def gen_stats(np_data, name='Model', graph=True):
     print("Summary statistics for {}".format(name))
     # np_data = convert_to_numpy(data)
@@ -206,6 +246,9 @@ def gen_stats(np_data, name='Model', graph=True):
         # plot_iter_vs_PSNR(np_data, iteration_max, PSNR_max, name)
 
 
+'''
+Plot multiple models of PSNR vs Iterations
+'''
 def multiplot(y, names, colors):
     for i in range(len(y)):
         plt.plot(y[i], colors[i], label=names[i])
@@ -217,6 +260,9 @@ def multiplot(y, names, colors):
     plt.show()
 
 
+'''
+Scatter plot of a model's highest score and accompanying total training time.
+'''
 def multiscatter(x, y, names, colors):
     for i in range(len(x)):
         print(names[i], x[i], y[i])
@@ -228,6 +274,7 @@ def multiscatter(x, y, names, colors):
     plt.legend(loc='lower right')
     plt.show()
 
+# Save path of results
 save_path = 'report/obj3/'
 if not os.path.exists(save_path):
     os.makedirs(save_path)
@@ -236,13 +283,14 @@ model_names = retrieve_model_names(logs_path)
 print(model_names)
 log_files = sorted(glob.glob(os.path.join(logs_path, '*.txt')))
 
+# First append JSON objects
 dict_logs = {}
 for item in range(len(log_files)):
     # print(model_names[item])
     dict_logs[model_names[item]] = append_logs(log_files[item])
     # print(model_names[item])
 
-#
+# Clean each json object into a usable dictionary format with numpy conversion and generate relevant statistics
 for i in sorted(dict_logs.keys()):
     # print("Before: {}".format(dict_logs[i]))
     dict_logs[i] = clean_logs(dict_logs[i])
@@ -251,9 +299,9 @@ for i in sorted(dict_logs.keys()):
     # print("After: {}".format(dict_logs[i]))
     # top_N(dict_logs[i])
     gen_stats(dict_logs[i], name=i, graph=True)
-#
-# """Multiple figures per graph"""
 
+
+# Multiple figures per graph required storing of results into arrays
 arr_of_iters = []
 arr_of_PSNRs = []
 cumulative_times = []
@@ -273,10 +321,13 @@ for i in sorted(dict_logs.keys()):
 
 # print(cumulative_times)
 # orange, green
+# Colours to distinguish multi-plot variety
+# 15 colours each of control_3, control_5, control_7, alternative and null, had 3 models trained
 colors = ['#FF8300', '#CD7A21', '#B2712C', '#32FF00', '#45C425', '#469332', '#00FFE8', '#2ACBBC', '#429890', '#0093FF', '#3485C0', '#417092', '#C100FF', '#9636B5', '#885E95']
 multiplot(arr_of_iters, arr_of_PSNRs, model_names, colors)
 multiscatter(cumulative_times, max_PSNRs, model_names, colors)
 
+# Computing the mean from the 3 models of each for an overview plot
 alt_sum_mean = (arr_of_PSNRs[0] + arr_of_PSNRs[1][1:500] + arr_of_PSNRs[2][1:500]) / 3
 control_3_mean = (arr_of_PSNRs[3][1:500] + arr_of_PSNRs[4][1:500]  + arr_of_PSNRs[5][1:500] ) / 3
 control_5_mean = (arr_of_PSNRs[6][1:500]  + arr_of_PSNRs[7][1:500]  + arr_of_PSNRs[8][1:500] ) / 3

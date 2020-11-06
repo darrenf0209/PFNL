@@ -1,25 +1,17 @@
 import tensorflow as tf
-from tensorflow.python.ops import control_flow_ops
-from os.path import join, exists
 import glob
 import random
 import numpy as np
-from PIL import Image
-import scipy
 import cv2
-from utils import LoadImage, DownSample, DownSample_4D, BLUR, AVG_PSNR, depth_to_space_3D, DynFilter3D, LoadParams, \
-    cv2_imread, cv2_imsave, get_num_params, automkdir
-from modules.videosr_ops import imwarp_forward
-import time
+from utils import DownSample_4D, BLUR, cv2_imread
 import os
-import matplotlib.pyplot as plt
-from tqdm import trange, tqdm
-from utilities.pre_processing import resize_img, tile_img
-# from slice_img import tf_resize_image, tf_tile_image, tf_resize_images
-# NEW
+from utilities.pre_processing import resize_img
 import tensorflow.compat.v1 as tf
 
 
+'''
+General Video super-resolution class that is adopted for each model.
+'''
 class VSR(object):
     def __init__(self):
         self.num_frames = 7
@@ -39,6 +31,9 @@ class VSR(object):
         self.save_dir = './checkpoint'
         self.log_dir = './eval_log.txt'
 
+    '''
+    Pre-processing for the Null model. Previous and current frame are LR inputs to the network.
+    '''
     def null_pipeline(self):
         def prepprocessing(gt=None):
             # number of frames, width, height and channels
@@ -83,8 +78,6 @@ class VSR(object):
             inp.set_shape([self.num_frames, self.in_size, self.in_size, 3])
             gt.set_shape([1, self.in_size * self.scale, self.in_size * self.scale, 3])
             # print('Pre-processing finished with: LR: {}, HR: {}'.format(inp.get_shape(), gt.get_shape()))
-
-
 
             return inp, gt
 
@@ -141,6 +134,9 @@ class VSR(object):
 
         return inp, gt
 
+    '''
+    Pre-processing for the Alternative model. Previous frame is HR and current frame is LR. 
+    '''
     def alternative_pipeline_downsample_change(self):
         def prepprocessing(gt=None):
             # number of frames, width, height and channels
@@ -256,6 +252,10 @@ class VSR(object):
                                  capacity=self.batch_size * 2)
         return inp, gt
 
+    '''
+    Pre-processing for the Alternative model. Previous frame is HR and current frame is LR. 
+    Additional down-sampling takes place as a direct comparison to null model.
+    '''
     def alternative_pipeline(self):
         def prepprocessing(gt=None):
             # number of frames, width, height and channels
@@ -328,7 +328,6 @@ class VSR(object):
         gt_batch = gt_vid[rand_frame:rand_frame + self.num_frames]
         # print("Batch_list: {}".format(gt_batch))
 
-        # NEW
         cur_img = cv2_imread(gt_batch[1])
         h, w, c = cur_img.shape
         print("H: {}, W: {}, C: {}".format(h, w, c))
@@ -343,14 +342,7 @@ class VSR(object):
         gt_batch = np.stack((prev_top_left, prev_bottom_left, cur_img_downsize, prev_top_right, prev_bottom_right), axis=0)
         print("new batch shape: {}".format(gt_batch.shape))
 
-        # ORIGINAL
-        # tiled_imgs = tile_img(gt_batch[0])
-        # resized_img = resize_img(gt_batch[-1])
-        # resized_img = np.expand_dims(resized_img, axis=0)
-        # gt_batch = np.concatenate((tiled_imgs, resized_img), axis=0)
-        # # print("new batch shape: {}".format(gt_batch.shape))
-        #
-        # # Call original pre-processing function for data augmentation, flip and resizing
+        # Call original pre-processing function for data augmentation, flip and resizing
         inp, gt = prepprocessing(gt_batch)
         # inp = tf.expand_dims(inp, 0)
         # gt = tf.expand_dims(gt, 0)
@@ -362,7 +354,12 @@ class VSR(object):
         # cv2.destroyAllWindows()
         inp, gt = tf.train.batch([inp, gt], batch_size=self.batch_size, num_threads=3,
                                  capacity=self.batch_size * 2)
+
         return inp, gt
+
+    '''
+    Generic frame prrocessing for the network.
+    '''
 
     def single_input_producer(self):
         def read_data():

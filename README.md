@@ -47,7 +47,7 @@ This frame is from foliage in vid4 testing dataset. Bicubic up-sampling and the 
 
 ![information recycling](https://github.com/darrenf0209/PFNL/blob/master/demo/foliage_info_recycle.gif)
 
-
+<img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_alt_best.gif" alt="Output of Network" width="400">
 
 
 ## Citation

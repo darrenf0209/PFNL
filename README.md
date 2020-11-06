@@ -37,21 +37,17 @@ If you have questions, please open an issue here or send me an email at darrenf0
 
 This frame is from clap in UDM10 testing dataset. The down-sampled and blurred input to the network and corresponding network output of the Alternative model are shown.
 
-
 <p float="left">
-    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_b4.gif" alt="Input to Network" width="300" />
-    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_alt_best.gif" alt="Output of Network" width="300" />
+    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_b4.gif" alt="Input to Network" width="400" />
+    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_alt_best.gif" alt="Output of Network" width="400" />
 </p>
-
-<img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_b4.gif" alt="Input to Network" width="500">
-
-<img src="https://github.com/darrenf0209/PFNL/blob/master/demo/clap_alt_best.gif" alt="Output of Network" width="500">
 
 This frame is from foliage in vid4 testing dataset. Bicubic up-sampling and the information recycling method are shown.
 
-<img src="https://github.com/darrenf0209/PFNL/blob/master/demo/foliage_bicubic.gif" alt="Bicubic Up-sampling" width="500">
-
-<img src="https://github.com/darrenf0209/PFNL/blob/master/demo/foliage_info_recycle.gif" alt="Information Recycling" width="500">
+<p float="left">
+    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/foliage_bicubic.gif" alt="Bicubic Up-sampling" width="400" />
+    <img src="https://github.com/darrenf0209/PFNL/blob/master/demo/foliage_info_recycle.gif" alt="Information Recycling" width="400" />
+</p>
 
 ## Citation
 If you found this project useful, please consider citing the authors of the PFNL network, which this work used as foundation.
